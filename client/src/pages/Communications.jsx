@@ -1,0 +1,221 @@
+// Pagina Comunicazioni — Chat-style split panel (WhatsApp-like)
+import { useState, useRef, useEffect } from 'react';
+import { useData, genId } from '../context/DataContext';
+
+const STATUSES = {
+  new_lead:   { label:'Nuovo lead',  color:'#818cf8', dot:'#818cf8' },
+  contacted:  { label:'Contattato',  color:'#f59e0b', dot:'#f59e0b' },
+  link_sent:  { label:'Link inviato',color:'#06b6d4', dot:'#06b6d4' },
+  converted:  { label:'Convertito',  color:'#22c55e', dot:'#22c55e' },
+  lost:       { label:'Perso',       color:'#ef4444', dot:'#ef4444' },
+};
+
+export default function Communications() {
+  const { conversations, setConversations, msgTemplates, getCustomer, showToast } = useData();
+  const [activeId, setActiveId] = useState(conversations[0]?.id || null);
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [msgInput, setMsgInput] = useState('');
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name:'', phone:'' });
+  const chatEndRef = useRef(null);
+
+  const active = conversations.find(c => c.id === activeId);
+
+  // Auto-scroll to bottom on message change
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior:'smooth' });
+  }, [active?.messages?.length]);
+
+  // Filtered contacts
+  const filtered = conversations.filter(c => {
+    if (filter !== 'all' && c.status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return c.contactName.toLowerCase().includes(q) || c.phone.includes(q);
+    }
+    return true;
+  });
+
+  // Status counts
+  const counts = {};
+  Object.keys(STATUSES).forEach(k => { counts[k] = conversations.filter(c => c.status === k).length; });
+
+  // Send message
+  const sendMessage = () => {
+    if (!msgInput.trim() || !activeId) return;
+    const msg = { id: genId('m'), dir:'out', text: msgInput.trim(), ts:'Adesso', auto:false };
+    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, messages:[...c.messages, msg] } : c));
+    setMsgInput('');
+  };
+
+  // Send template
+  const sendTemplate = (tpl) => {
+    if (!activeId) return;
+    const text = tpl.text.replace('{{nome}}', active?.contactName?.split(' ')[0] || '').replace('{{link}}', 'https://autodiag.it/prev/...');
+    const msg = { id: genId('m'), dir:'out', text, ts:'Adesso', auto:true };
+    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, messages:[...c.messages, msg] } : c));
+    showToast('Template inviato');
+  };
+
+  // Change status
+  const changeStatus = (newStatus) => {
+    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, status: newStatus } : c));
+    showToast(`Stato aggiornato: ${STATUSES[newStatus].label}`);
+  };
+
+  // Create new contact
+  const createContact = () => {
+    if (!newContact.name.trim() || !newContact.phone.trim()) return;
+    const conv = { id: genId('conv'), contactName: newContact.name.trim(), phone: newContact.phone.trim(), customerId: null, orderId: null, status:'new_lead', messages:[] };
+    setConversations(prev => [conv, ...prev]);
+    setActiveId(conv.id);
+    setShowNewContact(false);
+    setNewContact({ name:'', phone:'' });
+    showToast('Contatto creato');
+  };
+
+  // Last message preview
+  const lastMsg = (conv) => {
+    const m = conv.messages[conv.messages.length - 1];
+    if (!m) return 'Nessun messaggio';
+    const prefix = m.dir === 'out' ? 'Tu: ' : '';
+    const text = m.text.length > 35 ? m.text.slice(0, 35) + '…' : m.text;
+    return prefix + text;
+  };
+
+  const lastTime = (conv) => {
+    const m = conv.messages[conv.messages.length - 1];
+    return m?.ts?.split(' ').pop() || '';
+  };
+
+  return (
+    <main className="page comm-page">
+      <div className="comm-layout">
+        {/* ─── SIDEBAR CONTATTI ─── */}
+        <div className="comm-sidebar">
+          <div className="comm-sidebar-header">
+            <h2 className="comm-sidebar-title">💬 Chat</h2>
+            <button className="btn-primary btn-sm" onClick={() => setShowNewContact(true)}>+</button>
+          </div>
+
+          {/* Filtri status */}
+          <div className="comm-filters">
+            <button onClick={() => setFilter('all')} className={`comm-chip ${filter === 'all' ? 'active' : ''}`}>Tutti</button>
+            {Object.entries(STATUSES).map(([k, v]) => (
+              <button key={k} onClick={() => setFilter(k)} className={`comm-chip ${filter === k ? 'active' : ''}`} style={{ '--chip-color': v.color }}>
+                {v.label} {counts[k] > 0 && <span className="comm-chip-count">{counts[k]}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <input type="text" className="comm-search" placeholder="Cerca contatto…" value={search} onChange={e => setSearch(e.target.value)} />
+
+          {/* Contact list */}
+          <div className="comm-contact-list">
+            {filtered.map(conv => {
+              const st = STATUSES[conv.status];
+              const isActive = conv.id === activeId;
+              const unread = conv.messages.length > 0 && conv.messages[conv.messages.length - 1].dir === 'in';
+              return (
+                <div key={conv.id} className={`comm-contact ${isActive ? 'active' : ''}`} onClick={() => setActiveId(conv.id)}>
+                  <div className="comm-contact-avatar">
+                    <span className="comm-status-dot" style={{ background: st.dot }}></span>
+                    {conv.contactName.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div className="comm-contact-info">
+                    <div className="comm-contact-name">
+                      {conv.contactName}
+                      {unread && !isActive && <span className="comm-unread-dot"></span>}
+                    </div>
+                    <div className="comm-contact-preview">{lastMsg(conv)}</div>
+                  </div>
+                  <div className="comm-contact-time">{lastTime(conv)}</div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && <div className="comm-empty-contacts">Nessun contatto</div>}
+          </div>
+        </div>
+
+        {/* ─── CHAT PANEL ─── */}
+        <div className="comm-chat">
+          {active ? (
+            <>
+              {/* Chat header */}
+              <div className="comm-chat-header">
+                <div className="comm-chat-header-info">
+                  <div className="comm-chat-name">{active.contactName}</div>
+                  <div className="comm-chat-phone">📱 {active.phone}</div>
+                </div>
+                <div className="comm-chat-header-actions">
+                  <select className="comm-status-select" value={active.status} onChange={e => changeStatus(e.target.value)} style={{ borderColor: STATUSES[active.status]?.color }}>
+                    {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                  {active.orderId && <span className="comm-order-link">🔗 Ordine collegato</span>}
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="comm-messages">
+                {active.messages.map(msg => (
+                  <div key={msg.id} className={`comm-bubble ${msg.dir === 'out' ? 'out' : 'in'}`}>
+                    <div className="comm-bubble-text">{msg.text}</div>
+                    <div className="comm-bubble-meta">
+                      {msg.ts}
+                      {msg.auto && <span className="comm-auto-badge">🤖 auto</span>}
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input area */}
+              <div className="comm-input-area">
+                <div className="comm-template-row">
+                  {msgTemplates.map(tpl => (
+                    <button key={tpl.id} className="comm-tpl-btn" onClick={() => sendTemplate(tpl)} title={tpl.text}>
+                      ⚡ {tpl.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="comm-input-row">
+                  <input
+                    type="text"
+                    className="comm-msg-input"
+                    placeholder="Scrivi messaggio…"
+                    value={msgInput}
+                    onChange={e => setMsgInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                  />
+                  <button className="comm-send-btn" onClick={sendMessage} disabled={!msgInput.trim()}>▶</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="comm-empty-chat">
+              <div className="comm-empty-icon">💬</div>
+              <div className="comm-empty-title">Seleziona un contatto</div>
+              <div className="comm-empty-sub">Scegli una conversazione dalla lista o creane una nuova</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal nuovo contatto */}
+      {showNewContact && (
+        <div className="modal-backdrop" onClick={() => setShowNewContact(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth:'380px' }}>
+            <div className="modal-header"><span className="modal-title">Nuovo contatto</span><button className="modal-close" onClick={() => setShowNewContact(false)}>✕</button></div>
+            <div className="modal-body">
+              <div className="form-group"><label className="form-label">Nome</label><input className="form-input" value={newContact.name} onChange={e => setNewContact({...newContact, name:e.target.value})} placeholder="es. Mario Rossi" /></div>
+              <div className="form-group"><label className="form-label">Telefono WhatsApp</label><input className="form-input" value={newContact.phone} onChange={e => setNewContact({...newContact, phone:e.target.value})} placeholder="+39 3XX XXXXXXX" /></div>
+              <div className="form-actions"><button className="btn-secondary" onClick={() => setShowNewContact(false)}>Annulla</button><button className="btn-primary" onClick={createContact}>Crea contatto</button></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

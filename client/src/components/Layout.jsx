@@ -9,6 +9,7 @@ export default function Layout({ children, currentPage, onPageChange }) {
     dashboard: 'Dashboard',
     ordini: 'Ordini',
     clienti: 'Clienti',
+    comunicazioni: 'Comunicazioni',
     abbonamenti: 'Abbonamenti',
     prodotti: 'Prodotti',
     acquisti: 'Acquisti',
@@ -18,7 +19,7 @@ export default function Layout({ children, currentPage, onPageChange }) {
   }[currentPage] || 'Dashboard';
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950 text-white lg:pl-62">
+    <div className="layout">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
@@ -29,15 +30,12 @@ export default function Layout({ children, currentPage, onPageChange }) {
         }}
       />
       
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="main-area">
         <TopNav 
           onMenuClick={() => setSidebarOpen(true)}
           pageTitle={pageTitle}
         />
-        
-        <main className="flex-1 p-5 pb-12 max-w-5xl mx-auto w-full">
-          {children}
-        </main>
+        {children}
       </div>
     </div>
   );
