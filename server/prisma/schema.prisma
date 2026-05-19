@@ -1,0 +1,93 @@
+// Schema del database per GestionaleVendite
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+ 
+// Clienti
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  city          String
+  ordersCount   Int      @default(0)
+  ltv           Int      @default(0)
+  lastOrderDate DateTime?
+  firstChannel  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        Order[]
+  subscriptions Subscription[]
+}
+ 
+// Ordini
+model Order {
+  id         String   @id @default(cuid())
+  orderNumber String  @unique
+  customerId String
+  productId  String
+  channel    String
+  total      Int
+  cogs       Int
+  status     String
+  date       DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   Customer @relation(fields: [customerId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+}
+ 
+// Prodotti
+model Product {
+  id        String  @id @default(cuid())
+  sku       String  @unique
+  name      String
+  type      String
+  price     Int
+  cost      Int
+  stock     Int?
+  lowStock  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+ 
+// Abbonamenti
+model Subscription {
+  id        String   @id @default(cuid())
+  customerId String
+  plan      String
+  mrr       Int
+  nextDate  DateTime
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer  Customer @relation(fields: [customerId], references: [id])
+}
+ 
+// Acquisti
+model Purchase {
+  id       String   @id @default(cuid())
+  poNumber String   @unique
+  supplier String
+  items    String
+  total    Int
+  status   String
+  date     DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+// Spese
+model Expense {
+  id       String   @id @default(cuid())
+  category String
+  desc     String
+  amount   Int
+  channel  String?
+  date     DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
