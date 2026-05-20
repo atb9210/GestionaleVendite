@@ -66,7 +66,16 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.customer.delete({ where: { id: req.params.id } });
+    const id = req.params.id as string;
+    const [orderCount, subCount] = await Promise.all([
+      prisma.order.count({ where: { customerId: id } }),
+      prisma.subscription.count({ where: { customerId: id } }),
+    ]);
+    if (orderCount > 0 || subCount > 0) {
+      res.status(409).json({ error: `Impossibile eliminare: il cliente ha ${orderCount} ordini e ${subCount} abbonamenti collegati.` });
+      return;
+    }
+    await prisma.customer.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

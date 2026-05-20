@@ -4,6 +4,7 @@ import { useData, fmt, genId } from '../context/DataContext';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import DatePicker from '../components/DatePicker';
+import PhoneInput from '../components/PhoneInput';
 
 const STATUS = {
   paid:     { label:'Pagato',      cls:'badge-green' },
@@ -15,7 +16,7 @@ const STATUS = {
 
 const emptyShipping = { address:'', civico:'', cap:'', country:'Italia', tracking:'', contrassegno:false };
 const emptySub = { planId:'', amount:'', startDate:'' };
-const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
+const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', phone:{ countryCode:'IT', number:'' }, shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
 
 export default function Orders() {
   const { orders, customers, products, channels, subscriptions, getChannel, getCustomer, getProduct, showToast, createOrder, updateOrder, deleteOrder, createSubscription } = useData();
@@ -26,6 +27,8 @@ export default function Orders() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
+  const [shipOpen, setShipOpen] = useState(true);
+  const [subOpen, setSubOpen] = useState(true);
 
   const filtered = orders.filter(o => {
     if (filter !== 'all' && o.status !== filter) return false;
@@ -62,16 +65,20 @@ export default function Orders() {
 
   const nextOrderNum = () => '#' + (1042 + orders.length + 1);
 
-  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true); };
   const openEdit = (order) => {
+    const existingSub = order.subscriptionId ? subscriptions.find(s => s.id === order.subscriptionId) : null;
+    const subProd = existingSub ? subProducts.find(p => p.name === existingSub.plan) : null;
+    const cust = getCustomer(order.customerId);
     setForm({
       customerId:order.customerId, productId:order.productId, channel:order.channel,
       total:String(order.total), cogs:String(order.cogs), status:order.status,
       date: order._rawDate ? order._rawDate.split('T')[0] : order.date,
+      phone: cust?.phone || { countryCode:'IT', number:'' },
       shipping:!!order.shippingAddress, shippingData: order.shippingAddress ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false } : emptyShipping,
-      subscription:!!order.subscriptionId, subData:emptySub,
+      subscription:!!order.subscriptionId, subData: existingSub ? { planId: subProd?.id || '', amount: String(existingSub.mrr || ''), startDate: existingSub._rawNext ? existingSub._rawNext.split('T')[0] : '' } : emptySub,
     });
-    setEditingId(order.id); setErrors({}); setModalOpen(true);
+    setEditingId(order.id); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true);
   };
 
   const handleSave = async () => {
@@ -155,7 +162,7 @@ export default function Orders() {
               </div>
               <div>{ch && <span className="chan-badge" style={{ background:ch.dim, color:ch.color, borderColor:ch.bord }}><span className="chan-dot" style={{ background:ch.color }}></span>{ch.name}</span>}</div>
               <div><span className={`badge ${st.cls}`}>{st.label}</span></div>
-              <div className="row-money pos">{fmt(order.total)}<div style={{ fontSize:'10.5px', color:'var(--text3)', fontWeight:400, marginTop:'2px' }}>profit {fmt(profit)}</div></div>
+              <div className="row-money pos">{fmt(profit)}<div className="row-meta" style={{ marginTop:'2px' }}>{fmt(order.total)} venduto</div></div>
             </div>
           );
         })}
@@ -166,7 +173,16 @@ export default function Orders() {
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">Cliente</label>
-            <SearchableSelect options={customerOpts} value={form.customerId} onChange={v => setForm({...form, customerId:v})} placeholder="Seleziona cliente…" error={errors.customerId} />
+            <SearchableSelect options={customerOpts} value={form.customerId} onChange={v => {
+              const c = customers.find(x => x.id === v);
+              const hasAddr = !!(c?.address);
+              if (hasAddr) setShipOpen(true);
+              setForm({ ...form, customerId: v,
+                phone: c?.phone || { countryCode:'IT', number:'' },
+                shipping: hasAddr || form.shipping,
+                shippingData: hasAddr ? { ...emptyShipping, address: c.address||'', cap: c.cap||'', country: c.country||'Italia' } : form.shippingData,
+              });
+            }} placeholder="Seleziona cliente…" error={errors.customerId} />
             {errors.customerId && <div className="form-error">{errors.customerId}</div>}
           </div>
           <div className="form-group">
@@ -192,18 +208,27 @@ export default function Orders() {
           <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total:e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
           <div className="form-group"><label className="form-label">COGS (€)</label><input className={`form-input ${errors.cogs ? 'error' : ''}`} type="number" min="0" value={form.cogs} onChange={e => setForm({...form, cogs:e.target.value})} />{errors.cogs && <div className="form-error">{errors.cogs}</div>}</div>
         </div>
-        <div className="form-group">
-          <label className="form-label">Data</label>
-          <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
-          {errors.date && <div className="form-error">{errors.date}</div>}
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Data</label>
+            <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+            {errors.date && <div className="form-error">{errors.date}</div>}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Telefono</label>
+            <PhoneInput value={form.phone} onChange={phone => setForm({...form, phone})} />
+          </div>
         </div>
 
         {/* ─── TOGGLE SPEDIZIONE ─── */}
-        <div className="form-toggle" onClick={() => setForm({...form, shipping:!form.shipping})}>
-          <div className={`form-toggle-switch ${form.shipping ? 'active' : ''}`}></div>
-          <div><div className="form-toggle-label">📦 Spedizione</div><div className="form-toggle-sub">Aggiungi dati di spedizione all'ordine</div></div>
+        <div className="form-toggle">
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1 }} onClick={() => setForm({...form, shipping:!form.shipping})}>
+            <div className={`form-toggle-switch ${form.shipping ? 'active' : ''}`}></div>
+            <div><div className="form-toggle-label">📦 Spedizione</div><div className="form-toggle-sub">Aggiungi dati di spedizione all'ordine</div></div>
+          </div>
+          {form.shipping && <button type="button" onClick={e => { e.stopPropagation(); setShipOpen(o => !o); }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text3)', padding:'4px', display:'flex', alignItems:'center' }}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ transform: shipOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.18s' }}><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
         </div>
-        {form.shipping && (
+        {form.shipping && shipOpen && (
           <div className="form-section">
             <div className="form-section-title">🚚 Dati spedizione</div>
             <div className="form-row">
@@ -223,11 +248,14 @@ export default function Orders() {
         )}
 
         {/* ─── TOGGLE ABBONAMENTO ─── */}
-        <div className="form-toggle" onClick={() => setForm({...form, subscription:!form.subscription})}>
-          <div className={`form-toggle-switch ${form.subscription ? 'active' : ''}`}></div>
-          <div><div className="form-toggle-label">♻️ Abbonamento</div><div className="form-toggle-sub">Collega un piano ricorrente a questo ordine</div></div>
+        <div className="form-toggle">
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1 }} onClick={() => setForm({...form, subscription:!form.subscription})}>
+            <div className={`form-toggle-switch ${form.subscription ? 'active' : ''}`}></div>
+            <div><div className="form-toggle-label">♻️ Abbonamento</div><div className="form-toggle-sub">Collega un piano ricorrente a questo ordine</div></div>
+          </div>
+          {form.subscription && <button type="button" onClick={e => { e.stopPropagation(); setSubOpen(o => !o); }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text3)', padding:'4px', display:'flex', alignItems:'center' }}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ transform: subOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.18s' }}><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
         </div>
-        {form.subscription && (
+        {form.subscription && subOpen && (
           <div className="form-section">
             <div className="form-section-title">♻️ Dati abbonamento</div>
             <div className="form-group">
