@@ -1,13 +1,18 @@
 // Pagina Impostazioni — CRUD per categorie, canali, tipi prodotto
 import { useState } from 'react';
 import { useData, genId } from '../context/DataContext';
+import { api } from '../lib/api';
 import Modal from '../components/Modal';
 
 const COLORS = ['#1877f2','#34a853','#e1306c','#818cf8','#f59e0b','#22c55e','#25d366','#ef4444','#8b5cf6','#f97316','#06b6d4','#ec4899'];
 const ICONS = ['📦','📣','💿','⛽','📄','🔌','💻','🔧','♻️','🔗','🎧','📱','🛒','✈️','🏠','📐'];
 
 export default function Settings() {
-  const { channels, setChannels, expenseCategories, setExpenseCategories, productTypes, setProductTypes, suppliers, setSuppliers, showToast } = useData();
+  const { channels, expenseCategories, productTypes, suppliers, showToast,
+    createChannel, updateChannel, deleteChannel: apiDeleteChannel,
+    createExpenseCategory, createProductType,
+    createSupplier, updateSupplier, deleteSupplier: apiDeleteSupplier,
+    setExpenseCategories, setProductTypes } = useData();
 
   const [goals, setGoals] = useState({ monthlyProfit:'€ 4.000', marginTarget:'60%', mrrTarget:'€ 3.000' });
 
@@ -27,79 +32,99 @@ export default function Settings() {
   // ─── Channel CRUD ───
   const openChannelCreate = () => { setForm({ name:'', color:COLORS[channels.length % COLORS.length] }); setModal({ type:'channel', editItem:null }); setErrors({}); };
   const openChannelEdit = (ch) => { setForm({ name:ch.name, color:ch.color }); setModal({ type:'channel', editItem:ch }); setErrors({}); };
-  const saveChannel = () => {
+  const saveChannel = async () => {
     if (!form.name.trim()) { setErrors({ name:'Nome obbligatorio' }); return; }
-    if (modal.editItem) {
-      setChannels(prev => prev.map(c => c.id === modal.editItem.id ? { ...c, name:form.name.trim(), color:form.color, dim:form.color+'1f', bord:form.color+'4d' } : c));
-      showToast('Canale aggiornato');
-    } else {
-      setChannels(prev => [...prev, { id:genId('ch'), name:form.name.trim(), color:form.color, dim:form.color+'1f', bord:form.color+'4d' }]);
-      showToast('Canale aggiunto');
-    }
-    setModal({ type:null, editItem:null });
+    try {
+      if (modal.editItem) {
+        await updateChannel(modal.editItem.id, { name:form.name.trim(), color:form.color });
+        showToast('Canale aggiornato');
+      } else {
+        await createChannel({ name:form.name.trim(), color:form.color });
+        showToast('Canale aggiunto');
+      }
+      setModal({ type:null, editItem:null });
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
-  const deleteChannel = () => {
-    setChannels(prev => prev.filter(c => c.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Canale rimosso', 'error');
+  const handleDeleteChannel = async () => {
+    try {
+      await apiDeleteChannel(deleteModal.id);
+      setDeleteModal(null); showToast('Canale rimosso', 'error');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   // ─── Expense Category CRUD ───
   const openExpCatCreate = () => { setForm({ label:'', key:'', icon:'📄', color:'#a1a1aa' }); setModal({ type:'expcat', editItem:null }); setErrors({}); };
   const openExpCatEdit = (cat) => { setForm({ label:cat.label, key:cat.key, icon:cat.icon, color:cat.color }); setModal({ type:'expcat', editItem:cat }); setErrors({}); };
-  const saveExpCat = () => {
+  const saveExpCat = async () => {
     if (!form.label.trim()) { setErrors({ label:'Nome obbligatorio' }); return; }
     const key = form.key || form.label.trim().toLowerCase().replace(/\s+/g,'_');
-    if (modal.editItem) {
-      setExpenseCategories(prev => prev.map(c => c.id === modal.editItem.id ? { ...c, label:form.label.trim(), key, icon:form.icon, color:form.color } : c));
-      showToast('Categoria spesa aggiornata');
-    } else {
-      setExpenseCategories(prev => [...prev, { id:genId('ec'), key, label:form.label.trim(), icon:form.icon, color:form.color }]);
-      showToast('Categoria spesa aggiunta');
-    }
-    setModal({ type:null, editItem:null });
+    try {
+      if (modal.editItem) {
+        await api.expenseCategories.update(modal.editItem.id, { label:form.label.trim(), key, icon:form.icon, color:form.color });
+        setExpenseCategories(await api.expenseCategories.list());
+        showToast('Categoria spesa aggiornata');
+      } else {
+        await createExpenseCategory({ key, label:form.label.trim(), icon:form.icon, color:form.color });
+        showToast('Categoria spesa aggiunta');
+      }
+      setModal({ type:null, editItem:null });
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
-  const deleteExpCat = () => {
-    setExpenseCategories(prev => prev.filter(c => c.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Categoria spesa rimossa', 'error');
+  const deleteExpCat = async () => {
+    try {
+      await api.expenseCategories.delete(deleteModal.id);
+      setExpenseCategories(await api.expenseCategories.list());
+      setDeleteModal(null); showToast('Categoria spesa rimossa', 'error');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   // ─── Product Type CRUD ───
   const openProdTypeCreate = () => { setForm({ label:'', key:'', icon:'🔌' }); setModal({ type:'prodtype', editItem:null }); setErrors({}); };
   const openProdTypeEdit = (pt) => { setForm({ label:pt.label, key:pt.key, icon:pt.icon }); setModal({ type:'prodtype', editItem:pt }); setErrors({}); };
-  const saveProdType = () => {
+  const saveProdType = async () => {
     if (!form.label.trim()) { setErrors({ label:'Nome obbligatorio' }); return; }
     const key = form.key || form.label.trim().toLowerCase().replace(/[\s/]+/g,'_');
-    if (modal.editItem) {
-      setProductTypes(prev => prev.map(t => t.id === modal.editItem.id ? { ...t, label:form.label.trim(), key, icon:form.icon } : t));
-      showToast('Tipo prodotto aggiornato');
-    } else {
-      setProductTypes(prev => [...prev, { id:genId('pt'), key, label:form.label.trim(), icon:form.icon }]);
-      showToast('Tipo prodotto aggiunto');
-    }
-    setModal({ type:null, editItem:null });
+    try {
+      if (modal.editItem) {
+        await api.productTypes.update(modal.editItem.id, { label:form.label.trim(), key, icon:form.icon });
+        setProductTypes(await api.productTypes.list());
+        showToast('Tipo prodotto aggiornato');
+      } else {
+        await createProductType({ key, label:form.label.trim(), icon:form.icon });
+        showToast('Tipo prodotto aggiunto');
+      }
+      setModal({ type:null, editItem:null });
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
-  const deleteProdType = () => {
-    setProductTypes(prev => prev.filter(t => t.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Tipo prodotto rimosso', 'error');
+  const deleteProdType = async () => {
+    try {
+      await api.productTypes.delete(deleteModal.id);
+      setProductTypes(await api.productTypes.list());
+      setDeleteModal(null); showToast('Tipo prodotto rimosso', 'error');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   // ─── Supplier CRUD ───
   const openSupplierCreate = () => { setForm({ name:'', contact:'', phone:'' }); setModal({ type:'supplier', editItem:null }); setErrors({}); };
   const openSupplierEdit = (s) => { setForm({ name:s.name, contact:s.contact, phone:s.phone }); setModal({ type:'supplier', editItem:s }); setErrors({}); };
-  const saveSupplier = () => {
+  const saveSupplier = async () => {
     if (!form.name.trim()) { setErrors({ name:'Nome obbligatorio' }); return; }
-    if (modal.editItem) {
-      setSuppliers(prev => prev.map(s => s.id === modal.editItem.id ? { ...s, name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() } : s));
-      showToast('Fornitore aggiornato');
-    } else {
-      setSuppliers(prev => [...prev, { id:genId('sup'), name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() }]);
-      showToast('Fornitore aggiunto');
-    }
-    setModal({ type:null, editItem:null });
+    try {
+      if (modal.editItem) {
+        await updateSupplier(modal.editItem.id, { name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() });
+        showToast('Fornitore aggiornato');
+      } else {
+        await createSupplier({ name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() });
+        showToast('Fornitore aggiunto');
+      }
+      setModal({ type:null, editItem:null });
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
-  const deleteSupplier = () => {
-    setSuppliers(prev => prev.filter(s => s.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Fornitore rimosso', 'error');
+  const handleDeleteSupplier = async () => {
+    try {
+      await apiDeleteSupplier(deleteModal.id);
+      setDeleteModal(null); showToast('Fornitore rimosso', 'error');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   const closeModal = () => setModal({ type:null, editItem:null });
@@ -251,10 +276,10 @@ export default function Settings() {
         <div className="form-actions">
           <button className="btn-secondary" onClick={() => setDeleteModal(null)}>Annulla</button>
           <button className="btn-danger" onClick={() => {
-            if (deleteModal._type === 'channel') deleteChannel();
+            if (deleteModal._type === 'channel') handleDeleteChannel();
             else if (deleteModal._type === 'expcat') deleteExpCat();
             else if (deleteModal._type === 'prodtype') deleteProdType();
-            else if (deleteModal._type === 'supplier') deleteSupplier();
+            else if (deleteModal._type === 'supplier') handleDeleteSupplier();
           }}>Rimuovi</button>
         </div>
       </Modal>

@@ -1,4 +1,3 @@
-// Schema del database per GestionaleVendite
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,88 +5,202 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
- 
-// Clienti
+
+// ─── CONFIGURAZIONE ───
+
+model Channel {
+  id        String   @id @default(cuid())
+  name      String
+  color     String
+  createdAt DateTime @default(now())
+  orders    Order[]
+  expenses  Expense[]
+  customers Customer[]
+}
+
+model ProductType {
+  id       String    @id @default(cuid())
+  key      String    @unique
+  label    String
+  icon     String
+  products Product[]
+}
+
+model ExpenseCategory {
+  id       String    @id @default(cuid())
+  key      String    @unique
+  label    String
+  icon     String
+  color    String
+  expenses Expense[]
+}
+
+model Supplier {
+  id        String     @id @default(cuid())
+  name      String
+  contact   String?
+  phone     String?
+  createdAt DateTime   @default(now())
+  purchases Purchase[]
+}
+
+// ─── ENTITÀ PRINCIPALI ───
+
 model Customer {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
   city          String
-  ordersCount   Int      @default(0)
-  ltv           Int      @default(0)
+  phone         Json?
+  address       String?
+  cap           String?
+  country       String    @default("Italia")
+  firstChannel  String?
+  channel       Channel?  @relation(fields: [firstChannel], references: [id])
+  ordersCount   Int       @default(0)
+  ltv           Float     @default(0)
   lastOrderDate DateTime?
-  firstChannel  String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   orders        Order[]
   subscriptions Subscription[]
+  conversations Conversation[]
 }
- 
-// Ordini
-model Order {
-  id         String   @id @default(cuid())
-  orderNumber String  @unique
-  customerId String
-  productId  String
-  channel    String
-  total      Int
-  cogs       Int
-  status     String
-  date       DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  customer   Customer @relation(fields: [customerId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
-}
- 
-// Prodotti
+
 model Product {
-  id        String  @id @default(cuid())
-  sku       String  @unique
+  id        String      @id @default(cuid())
+  sku       String      @unique
   name      String
-  type      String
-  price     Int
-  cost      Int
+  typeKey   String
+  type      ProductType @relation(fields: [typeKey], references: [key])
+  price     Float
+  cost      Float
   stock     Int?
   lowStock  Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime    @default(now())
   orders    Order[]
 }
- 
-// Abbonamenti
+
+model Order {
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique
+  date             DateTime
+  customerId       String
+  customer         Customer      @relation(fields: [customerId], references: [id])
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+  channelId        String
+  channel          Channel       @relation(fields: [channelId], references: [id])
+  total            Float
+  cogs             Float
+  status           OrderStatus   @default(PENDING)
+  shippingAddress  String?
+  shippingCivico   String?
+  shippingCap      String?
+  shippingCountry  String?
+  shippingTracking String?
+  contrassegno     Boolean       @default(false)
+  subscriptionId   String?
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  REFUNDED
+  ACTIVE
+}
+
 model Subscription {
-  id        String   @id @default(cuid())
+  id         String    @id @default(cuid())
   customerId String
-  plan      String
-  mrr       Int
-  nextDate  DateTime
-  status    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  customer  Customer @relation(fields: [customerId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  plan       String
+  mrr        Float
+  nextDate   DateTime
+  status     SubStatus @default(ACTIVE)
+  createdAt  DateTime  @default(now())
+  orders     Order[]
 }
- 
-// Acquisti
+
+enum SubStatus {
+  ACTIVE
+  EXPIRING
+  CANCELLED
+}
+
 model Purchase {
-  id       String   @id @default(cuid())
-  poNumber String   @unique
-  supplier String
-  items    String
-  total    Int
-  status   String
-  date     DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String         @id @default(cuid())
+  poNumber   String         @unique
+  supplierId String
+  supplier   Supplier       @relation(fields: [supplierId], references: [id])
+  items      String
+  total      Float
+  status     PurchaseStatus @default(INTRANSIT)
+  date       DateTime
+  tracking   String?
+  createdAt  DateTime       @default(now())
 }
- 
-// Spese
+
+enum PurchaseStatus {
+  INTRANSIT
+  RECEIVED
+  TOPAY
+}
+
 model Expense {
-  id       String   @id @default(cuid())
-  category String
-  desc     String
-  amount   Int
-  channel  String?
-  date     DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String          @id @default(cuid())
+  catKey    String
+  category  ExpenseCategory @relation(fields: [catKey], references: [key])
+  desc      String
+  amount    Float
+  date      DateTime
+  channelId String?
+  channel   Channel?        @relation(fields: [channelId], references: [id])
+  createdAt DateTime        @default(now())
+}
+
+// ─── COMUNICAZIONI ───
+
+model Conversation {
+  id          String     @id @default(cuid())
+  contactName String
+  phone       String
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id])
+  status      ConvStatus @default(NEW_LEAD)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  messages    Message[]
+}
+
+enum ConvStatus {
+  NEW_LEAD
+  CONTACTED
+  LINK_SENT
+  CONVERTED
+  LOST
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MsgDirection
+  text           String
+  auto           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+enum MsgDirection {
+  IN
+  OUT
+}
+
+model MsgTemplate {
+  id    String @id @default(cuid())
+  label String
+  text  String
 }

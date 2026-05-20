@@ -14,7 +14,7 @@ const STATUS = {
 const emptyForm = { poNumber:'', supplierId:'', items:'', total:'', status:'intransit', date:'', tracking:'' };
 
 export default function Purchases() {
-  const { purchases, setPurchases, suppliers, showToast } = useData();
+  const { purchases, suppliers, showToast, createPurchase, updatePurchase, deletePurchase } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -56,26 +56,31 @@ export default function Purchases() {
 
   const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
   const openEdit = (p) => {
-    setForm({ poNumber:p.poNumber, supplierId:p.supplierId || '', items:p.items, total:String(p.total), status:p.status, date:p.date, tracking:p.tracking || '' });
+    setForm({ poNumber:p.poNumber, supplierId:p.supplierId || '', items:p.items, total:String(p.total), status:p.status, date: p._rawDate ? p._rawDate.split('T')[0] : p.date, tracking:p.tracking || '' });
     setEditingId(p.id); setErrors({}); setModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const data = { poNumber:form.poNumber.trim(), supplierId:form.supplierId, supplier:getSupplierName(form.supplierId), items:form.items.trim(), total:Number(form.total), status:form.status, date:form.date, tracking:form.tracking.trim() };
-    if (editingId) {
-      setPurchases(prev => prev.map(p => p.id === editingId ? { ...p, ...data } : p));
-      showToast('Acquisto aggiornato');
-    } else {
-      setPurchases(prev => [{ id:genId('pu'), ...data }, ...prev]);
-      showToast('Acquisto creato');
-    }
+    const data = { poNumber:form.poNumber.trim(), supplierId:form.supplierId, items:form.items.trim(), total:Number(form.total), status:form.status.toUpperCase(), date:form.date, tracking:form.tracking.trim() || null };
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updatePurchase(editingId, data);
+        showToast('Acquisto aggiornato');
+      } else {
+        await createPurchase(data);
+        showToast('Acquisto creato');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setPurchases(prev => prev.filter(p => p.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Acquisto eliminato', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deletePurchase(deleteModal.id);
+      showToast('Acquisto eliminato', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   const supplierOpts = suppliers.map((s, i) => ({ value:s.id, label:s.name, recent: i < 2 }));

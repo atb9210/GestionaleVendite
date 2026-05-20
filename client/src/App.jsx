@@ -19,6 +19,13 @@ function GlobalToast() {
   return <Toast message={toast.message} type={toast.type} isVisible={toast.show} onHide={hideToast} />;
 }
 
+// Loading overlay
+function LoadingGate({ children }) {
+  const { loading } = useData();
+  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:'14px', color:'var(--text3)' }}>Caricamento dati…</div>;
+  return children;
+}
+
 // Componente principale App
 function App() {
   // Stato per pagina corrente
@@ -40,9 +47,11 @@ function App() {
 
   return (
     <DataProvider>
-      <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-        {pages[currentPage] || pages.dashboard}
-      </Layout>
+      <LoadingGate>
+        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+          {pages[currentPage] || pages.dashboard}
+        </Layout>
+      </LoadingGate>
       <GlobalToast />
     </DataProvider>
   );

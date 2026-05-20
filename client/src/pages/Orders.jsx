@@ -18,7 +18,7 @@ const emptySub = { planId:'', amount:'', startDate:'' };
 const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
 
 export default function Orders() {
-  const { orders, setOrders, customers, products, channels, subscriptions, setSubscriptions, getChannel, getCustomer, getProduct, showToast } = useData();
+  const { orders, customers, products, channels, subscriptions, getChannel, getCustomer, getProduct, showToast, createOrder, updateOrder, deleteOrder, createSubscription } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -66,40 +66,43 @@ export default function Orders() {
   const openEdit = (order) => {
     setForm({
       customerId:order.customerId, productId:order.productId, channel:order.channel,
-      total:String(order.total), cogs:String(order.cogs), status:order.status, date:order.date,
-      shipping:!!order.shippingData, shippingData:order.shippingData || emptyShipping,
-      subscription:!!order.subData, subData:order.subData || emptySub,
+      total:String(order.total), cogs:String(order.cogs), status:order.status,
+      date: order._rawDate ? order._rawDate.split('T')[0] : order.date,
+      shipping:!!order.shippingAddress, shippingData: order.shippingAddress ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false } : emptyShipping,
+      subscription:!!order.subscriptionId, subData:emptySub,
     });
     setEditingId(order.id); setErrors({}); setModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     const orderData = {
-      customerId:form.customerId, productId:form.productId, channel:form.channel,
-      total:Number(form.total), cogs:Number(form.cogs), status:form.status, date:form.date,
-      shippingData: form.shipping ? form.shippingData : null,
-      subData: form.subscription ? form.subData : null,
+      customerId:form.customerId, productId:form.productId, channelId:form.channel,
+      total:Number(form.total), cogs:Number(form.cogs), status:form.status.toUpperCase(), date:form.date,
+      ...(form.shipping && { shippingData: { address:form.shippingData.address, civico:form.shippingData.civico, cap:form.shippingData.cap, country:form.shippingData.country, tracking:form.shippingData.tracking, contrassegno:form.shippingData.contrassegno } }),
     };
-    if (editingId) {
-      setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...orderData } : o));
-      showToast('Ordine aggiornato');
-    } else {
-      const newOrder = { id:genId('o'), orderNumber:nextOrderNum(), ...orderData };
-      setOrders(prev => [newOrder, ...prev]);
-      // If subscription toggle is on, also create subscription
-      if (form.subscription && form.subData.planId) {
-        const prod = getProduct(form.subData.planId);
-        setSubscriptions(prev => [...prev, { id:genId('s'), customerId:form.customerId, plan:prod?.name || 'Abbonamento', mrr:Number(form.subData.amount) || 0, next:form.subData.startDate || form.date, status:'active' }]);
-      }
-      showToast('Ordine creato');
-    }
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updateOrder(editingId, orderData);
+        showToast('Ordine aggiornato');
+      } else {
+        await createOrder(orderData);
+        if (form.subscription && form.subData.planId) {
+          const prod = getProduct(form.subData.planId);
+          await createSubscription({ customerId:form.customerId, plan:prod?.name || 'Abbonamento', mrr:Number(form.subData.amount) || 0, nextDate:form.subData.startDate || form.date, status:'ACTIVE' });
+        }
+        showToast('Ordine creato');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setOrders(prev => prev.filter(o => o.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Ordine eliminato', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deleteOrder(deleteModal.id);
+      showToast('Ordine eliminato', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   // Options for SearchableSelect

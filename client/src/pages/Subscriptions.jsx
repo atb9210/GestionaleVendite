@@ -13,7 +13,7 @@ const STATUS = {
 const emptyForm = { customerId:'', plan:'', mrr:'', next:'', status:'active' };
 
 export default function Subscriptions() {
-  const { subscriptions, setSubscriptions, customers, getCustomer, showToast } = useData();
+  const { subscriptions, customers, getCustomer, showToast, createSubscription, updateSubscription, deleteSubscription } = useData();
   const [filter, setFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState(null);
@@ -41,24 +41,30 @@ export default function Subscriptions() {
     return Object.keys(e).length === 0;
   };
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
-  const openEdit = (s) => { setForm({ customerId: s.customerId, plan: s.plan, mrr: String(s.mrr), next: s.next, status: s.status }); setEditingId(s.id); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setForm({...emptyForm, next: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
+  const openEdit = (s) => { setForm({ customerId: s.customerId, plan: s.plan, mrr: String(s.mrr), next: s._rawNext ? s._rawNext.split('T')[0] : s.next, status: s.status }); setEditingId(s.id); setErrors({}); setModalOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    if (editingId) {
-      setSubscriptions(prev => prev.map(s => s.id === editingId ? { ...s, customerId: form.customerId, plan: form.plan.trim(), mrr: Number(form.mrr), next: form.next.trim(), status: form.status } : s));
-      showToast('Abbonamento aggiornato');
-    } else {
-      setSubscriptions(prev => [...prev, { id: genId('s'), customerId: form.customerId, plan: form.plan.trim(), mrr: Number(form.mrr), next: form.next.trim(), status: form.status }]);
-      showToast('Abbonamento creato');
-    }
+    const data = { customerId: form.customerId, plan: form.plan.trim(), mrr: Number(form.mrr), nextDate: form.next.trim(), status: form.status.toUpperCase() };
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updateSubscription(editingId, data);
+        showToast('Abbonamento aggiornato');
+      } else {
+        await createSubscription(data);
+        showToast('Abbonamento creato');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setSubscriptions(prev => prev.filter(s => s.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Abbonamento eliminato', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deleteSubscription(deleteModal.id);
+      showToast('Abbonamento eliminato', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   return (

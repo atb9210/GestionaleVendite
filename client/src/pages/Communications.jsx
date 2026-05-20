@@ -11,7 +11,7 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, setConversations, msgTemplates, getCustomer, showToast } = useData();
+  const { conversations, msgTemplates, getCustomer, showToast, sendMessage: apiSendMessage, updateConversation, createConversation } = useData();
   const [activeId, setActiveId] = useState(conversations[0]?.id || null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -42,37 +42,41 @@ export default function Communications() {
   Object.keys(STATUSES).forEach(k => { counts[k] = conversations.filter(c => c.status === k).length; });
 
   // Send message
-  const sendMessage = () => {
+  const handleSendMessage = async () => {
     if (!msgInput.trim() || !activeId) return;
-    const msg = { id: genId('m'), dir:'out', text: msgInput.trim(), ts:'Adesso', auto:false };
-    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, messages:[...c.messages, msg] } : c));
-    setMsgInput('');
+    try {
+      await apiSendMessage(activeId, { direction: 'OUT', text: msgInput.trim(), auto: false });
+      setMsgInput('');
+    } catch (e) { showToast(e.message || 'Errore invio', 'error'); }
   };
 
   // Send template
-  const sendTemplate = (tpl) => {
+  const sendTemplate = async (tpl) => {
     if (!activeId) return;
     const text = tpl.text.replace('{{nome}}', active?.contactName?.split(' ')[0] || '').replace('{{link}}', 'https://autodiag.it/prev/...');
-    const msg = { id: genId('m'), dir:'out', text, ts:'Adesso', auto:true };
-    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, messages:[...c.messages, msg] } : c));
-    showToast('Template inviato');
+    try {
+      await apiSendMessage(activeId, { direction: 'OUT', text, auto: true });
+      showToast('Template inviato');
+    } catch (e) { showToast(e.message || 'Errore invio', 'error'); }
   };
 
   // Change status
-  const changeStatus = (newStatus) => {
-    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, status: newStatus } : c));
-    showToast(`Stato aggiornato: ${STATUSES[newStatus].label}`);
+  const changeStatus = async (newStatus) => {
+    try {
+      await updateConversation(activeId, { status: newStatus.toUpperCase() });
+      showToast(`Stato aggiornato: ${STATUSES[newStatus].label}`);
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   // Create new contact
-  const createContact = () => {
+  const createContact = async () => {
     if (!newContact.name.trim() || !newContact.phone.trim()) return;
-    const conv = { id: genId('conv'), contactName: newContact.name.trim(), phone: newContact.phone.trim(), customerId: null, orderId: null, status:'new_lead', messages:[] };
-    setConversations(prev => [conv, ...prev]);
-    setActiveId(conv.id);
-    setShowNewContact(false);
-    setNewContact({ name:'', phone:'' });
-    showToast('Contatto creato');
+    try {
+      await createConversation({ contactName: newContact.name.trim(), phone: newContact.phone.trim(), status: 'NEW_LEAD' });
+      setShowNewContact(false);
+      setNewContact({ name:'', phone:'' });
+      showToast('Contatto creato');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
   // Last message preview
@@ -187,9 +191,9 @@ export default function Communications() {
                     placeholder="Scrivi messaggio…"
                     value={msgInput}
                     onChange={e => setMsgInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
                   />
-                  <button className="comm-send-btn" onClick={sendMessage} disabled={!msgInput.trim()}>▶</button>
+                  <button className="comm-send-btn" onClick={handleSendMessage} disabled={!msgInput.trim()}>▶</button>
                 </div>
               </div>
             </>

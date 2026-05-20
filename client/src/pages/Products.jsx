@@ -7,7 +7,7 @@ const emptyForm = { name:'', sku:'', type:'obd', price:'', cost:'', stock:'', lo
 const STOCK_TYPES = new Set(['obd','pc_tablet','accessory']);
 
 export default function Products() {
-  const { products, setProducts, productTypes, getProductType, showToast } = useData();
+  const { products, productTypes, getProductType, showToast, createProduct, updateProduct, deleteProduct } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -58,23 +58,29 @@ export default function Products() {
     setEditingId(product.id); setErrors({}); setModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     const stockVal = form.stock !== '' ? Number(form.stock) : null;
     const lowStockVal = form.lowStock !== '' ? Number(form.lowStock) : null;
-    if (editingId) {
-      setProducts(prev => prev.map(p => p.id === editingId ? { ...p, name:form.name.trim(), sku:form.sku.trim(), type:form.type, price:Number(form.price), cost:Number(form.cost), stock:stockVal, lowStock:lowStockVal } : p));
-      showToast('Prodotto aggiornato');
-    } else {
-      setProducts(prev => [...prev, { id:genId('p'), name:form.name.trim(), sku:form.sku.trim(), type:form.type, price:Number(form.price), cost:Number(form.cost), stock:stockVal, lowStock:lowStockVal }]);
-      showToast('Prodotto creato');
-    }
+    const data = { name:form.name.trim(), sku:form.sku.trim(), typeKey:form.type, price:Number(form.price), cost:Number(form.cost), stock:stockVal, lowStock:lowStockVal };
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updateProduct(editingId, data);
+        showToast('Prodotto aggiornato');
+      } else {
+        await createProduct(data);
+        showToast('Prodotto creato');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setProducts(prev => prev.filter(p => p.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Prodotto eliminato', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deleteProduct(deleteModal.id);
+      showToast('Prodotto eliminato', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   // ─── RENDER ───

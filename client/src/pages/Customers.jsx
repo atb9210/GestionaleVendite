@@ -8,7 +8,7 @@ import PhoneInput from '../components/PhoneInput';
 const emptyForm = { name:'', city:'', firstChannel:'', phone:{ countryCode:'IT', number:'' }, address:'', cap:'', country:'Italia' };
 
 export default function Customers() {
-  const { customers, setCustomers, channels, getChannel, subscriptions, showToast } = useData();
+  const { customers, channels, getChannel, subscriptions, showToast, createCustomer, updateCustomer, deleteCustomer } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,22 +47,27 @@ export default function Customers() {
     setEditingId(c.id); setErrors({}); setModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     const data = { name:form.name.trim(), city:form.city.trim(), firstChannel:form.firstChannel, phone:form.phone, address:form.address.trim(), cap:form.cap.trim(), country:form.country.trim() };
-    if (editingId) {
-      setCustomers(prev => prev.map(c => c.id === editingId ? { ...c, ...data } : c));
-      showToast('Cliente aggiornato');
-    } else {
-      setCustomers(prev => [...prev, { id:genId('c'), ...data, orders:0, ltv:0, last:'—' }]);
-      showToast('Cliente creato');
-    }
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updateCustomer(editingId, data);
+        showToast('Cliente aggiornato');
+      } else {
+        await createCustomer(data);
+        showToast('Cliente creato');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setCustomers(prev => prev.filter(c => c.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Cliente eliminato', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deleteCustomer(deleteModal.id);
+      showToast('Cliente eliminato', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   // SearchableSelect options for channels

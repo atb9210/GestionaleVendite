@@ -8,7 +8,7 @@ import DatePicker from '../components/DatePicker';
 const emptyForm = { cat:'', desc:'', amount:'', channel:'', date:'' };
 
 export default function Expenses() {
-  const { expenses, setExpenses, expenseCategories, channels, getChannel, getExpenseCat, showToast } = useData();
+  const { expenses, expenseCategories, channels, getChannel, getExpenseCat, showToast, createExpense, updateExpense, deleteExpense } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -43,24 +43,29 @@ export default function Expenses() {
   };
 
   const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
-  const openEdit = (exp) => { setForm({ cat: exp.cat, desc: exp.desc, amount: String(exp.amount), channel: exp.channel || '', date: exp.date }); setEditingId(exp.id); setErrors({}); setModalOpen(true); };
+  const openEdit = (exp) => { setForm({ cat: exp.cat, desc: exp.desc, amount: String(exp.amount), channel: exp.channel || '', date: exp._rawDate ? exp._rawDate.split('T')[0] : exp.date }); setEditingId(exp.id); setErrors({}); setModalOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const data = { cat: form.cat, desc: form.desc.trim(), amount: Number(form.amount), channel: form.channel || null, date: form.date.trim() };
-    if (editingId) {
-      setExpenses(prev => prev.map(e => e.id === editingId ? { ...e, ...data } : e));
-      showToast('Spesa aggiornata');
-    } else {
-      setExpenses(prev => [{ id: genId('e'), ...data }, ...prev]);
-      showToast('Spesa registrata');
-    }
+    const data = { catKey: form.cat, desc: form.desc.trim(), amount: Number(form.amount), channelId: form.channel || null, date: form.date.trim() };
     setModalOpen(false);
+    try {
+      if (editingId) {
+        await updateExpense(editingId, data);
+        showToast('Spesa aggiornata');
+      } else {
+        await createExpense(data);
+        showToast('Spesa registrata');
+      }
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  const handleDelete = () => {
-    setExpenses(prev => prev.filter(e => e.id !== deleteModal.id));
-    setDeleteModal(null); showToast('Spesa eliminata', 'error');
+  const handleDelete = async () => {
+    setDeleteModal(null);
+    try {
+      await deleteExpense(deleteModal.id);
+      showToast('Spesa eliminata', 'error');
+    } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
   return (
