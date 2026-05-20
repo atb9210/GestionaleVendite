@@ -1,6 +1,6 @@
 services:
-  backend:
-    build: ./server
+  app:
+    build: .
     restart: unless-stopped
     expose:
       - "3001"
@@ -8,14 +8,3 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=production
       - PORT=3001
-
-  frontend:
-    build:
-      context: ./client
-      args:
-        VITE_API_URL: ${VITE_API_URL}
-    restart: unless-stopped
-    expose:
-      - "80"
-    depends_on:
-      - backend

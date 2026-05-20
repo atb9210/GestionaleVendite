@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -53,6 +54,13 @@ app.use('/api/v1/expenses', expensesRouter);
 app.use('/api/v1/conversations', conversationsRouter);
 app.use('/api/v1/msg-templates', msgTemplatesRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../public');
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 // Error handler (must be last)
 app.use(errorHandler);
