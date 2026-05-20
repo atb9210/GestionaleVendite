@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import express from 'express';
 import { WasenderWebhookEventType, type MessagesUpsertData } from 'wasenderapi';
-import wasender from '../../config/wasender';
+import { getWasender } from '../../config/wasender';
 import prisma from '../../config/prisma';
 
 const router = Router();
@@ -16,6 +16,8 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
       getRawBody: () => rawBody,
     };
 
+    const wasender = getWasender();
+    if (!wasender) { res.sendStatus(503); return; }
     const event = await wasender.handleWebhookEvent(adapter);
 
     if (event.event === WasenderWebhookEventType.MessagesUpsert) {

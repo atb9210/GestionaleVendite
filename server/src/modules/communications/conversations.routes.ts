@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../../config/prisma';
 import { z } from 'zod';
 import { validate } from '../../middleware/validate';
-import wasender from '../../config/wasender';
+import { getWasender } from '../../config/wasender';
 
 const router = Router();
 
@@ -93,11 +93,14 @@ router.post('/:id/messages', validate(MessageSchema), async (req: Request, res: 
 
     // Fire-and-forget WhatsApp send for outgoing messages
     if (req.body.direction === 'OUT') {
-      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
-      if (conv?.phone) {
-        wasender.sendText({ to: conv.phone, text: req.body.text }).catch((err: unknown) => {
-          console.error('Wasender sendText error:', err);
-        });
+      const wasender = getWasender();
+      if (wasender) {
+        const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+        if (conv?.phone) {
+          wasender.sendText({ to: conv.phone, text: req.body.text }).catch((err: unknown) => {
+            console.error('Wasender sendText error:', err);
+          });
+        }
       }
     }
 
