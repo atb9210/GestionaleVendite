@@ -1,7 +1,9 @@
-// Pagina Acquisti — CRUD completo con filtri e ricerca
+// Pagina Acquisti — CRUD con SearchableSelect fornitori da Settings + tracking + DatePicker
 import { useState } from 'react';
 import { useData, fmt, genId } from '../context/DataContext';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import DatePicker from '../components/DatePicker';
 
 const STATUS = {
   intransit: { label:'In transito', cls:'badge-blue'  },
@@ -9,10 +11,10 @@ const STATUS = {
   topay:     { label:'Da pagare',   cls:'badge-amber' },
 };
 
-const emptyForm = { poNumber:'', supplier:'', items:'', total:'', status:'intransit', date:'' };
+const emptyForm = { poNumber:'', supplierId:'', items:'', total:'', status:'intransit', date:'', tracking:'' };
 
 export default function Purchases() {
-  const { purchases, setPurchases, showToast } = useData();
+  const { purchases, setPurchases, suppliers, showToast } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -25,13 +27,16 @@ export default function Purchases() {
   const transitCnt = purchases.filter(p => p.status === 'intransit').length;
   const topayCnt = purchases.filter(p => p.status === 'topay').length;
 
+  const getSupplierName = (id) => suppliers.find(s => s.id === id)?.name || id || '—';
+
   const filtered = purchases.filter(p => {
     if (filter === 'intransit' && p.status !== 'intransit') return false;
     if (filter === 'received' && p.status !== 'received') return false;
     if (filter === 'topay' && p.status !== 'topay') return false;
     if (search) {
       const q = search.toLowerCase();
-      return p.poNumber.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q) || p.items.toLowerCase().includes(q);
+      const supName = getSupplierName(p.supplierId || p.supplier);
+      return p.poNumber.toLowerCase().includes(q) || supName.toLowerCase().includes(q) || p.items.toLowerCase().includes(q);
     }
     return true;
   });
@@ -39,26 +44,30 @@ export default function Purchases() {
   const validate = () => {
     const e = {};
     if (!form.poNumber.trim()) e.poNumber = 'Numero PO obbligatorio';
-    if (!form.supplier.trim()) e.supplier = 'Fornitore obbligatorio';
+    if (!form.supplierId) e.supplierId = 'Seleziona fornitore';
     if (!form.items.trim()) e.items = 'Articoli obbligatori';
     if (!form.total || isNaN(Number(form.total)) || Number(form.total) <= 0) e.total = 'Totale non valido';
-    if (!form.date.trim()) e.date = 'Data obbligatoria';
+    if (!form.date) e.date = 'Data obbligatoria';
     const dup = purchases.find(p => p.poNumber.toLowerCase() === form.poNumber.trim().toLowerCase() && p.id !== editingId);
     if (dup) e.poNumber = 'PO già esistente';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
-  const openEdit = (p) => { setForm({ poNumber: p.poNumber, supplier: p.supplier, items: p.items, total: String(p.total), status: p.status, date: p.date }); setEditingId(p.id); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
+  const openEdit = (p) => {
+    setForm({ poNumber:p.poNumber, supplierId:p.supplierId || '', items:p.items, total:String(p.total), status:p.status, date:p.date, tracking:p.tracking || '' });
+    setEditingId(p.id); setErrors({}); setModalOpen(true);
+  };
 
   const handleSave = () => {
     if (!validate()) return;
+    const data = { poNumber:form.poNumber.trim(), supplierId:form.supplierId, supplier:getSupplierName(form.supplierId), items:form.items.trim(), total:Number(form.total), status:form.status, date:form.date, tracking:form.tracking.trim() };
     if (editingId) {
-      setPurchases(prev => prev.map(p => p.id === editingId ? { ...p, poNumber: form.poNumber.trim(), supplier: form.supplier.trim(), items: form.items.trim(), total: Number(form.total), status: form.status, date: form.date.trim() } : p));
+      setPurchases(prev => prev.map(p => p.id === editingId ? { ...p, ...data } : p));
       showToast('Acquisto aggiornato');
     } else {
-      setPurchases(prev => [{ id: genId('pu'), poNumber: form.poNumber.trim(), supplier: form.supplier.trim(), items: form.items.trim(), total: Number(form.total), status: form.status, date: form.date.trim() }, ...prev]);
+      setPurchases(prev => [{ id:genId('pu'), ...data }, ...prev]);
       showToast('Acquisto creato');
     }
     setModalOpen(false);
@@ -68,6 +77,8 @@ export default function Purchases() {
     setPurchases(prev => prev.filter(p => p.id !== deleteModal.id));
     setDeleteModal(null); showToast('Acquisto eliminato', 'error');
   };
+
+  const supplierOpts = suppliers.map((s, i) => ({ value:s.id, label:s.name, recent: i < 2 }));
 
   return (
     <main className="page">
@@ -102,7 +113,7 @@ export default function Purchases() {
           return (
             <div key={purchase.id} className="list-row" style={{ gridTemplateColumns:'80px 1fr auto auto', cursor:'pointer' }} onClick={() => openEdit(purchase)}>
               <span className="ord-id">{purchase.poNumber}</span>
-              <div><div className="row-name">{purchase.supplier}</div><div className="row-meta">{purchase.items} · {purchase.date}</div></div>
+              <div><div className="row-name">{getSupplierName(purchase.supplierId || purchase.supplier)}</div><div className="row-meta">{purchase.items} · {purchase.date}</div></div>
               <div><span className={`badge ${st.cls}`}>{st.label}</span></div>
               <div className="row-money">{fmt(purchase.total)}</div>
             </div>
@@ -117,18 +128,29 @@ export default function Purchases() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Modifica acquisto' : 'Nuovo acquisto'}>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Numero PO</label><input className={`form-input ${errors.poNumber ? 'error' : ''}`} value={form.poNumber} onChange={e => setForm({...form, poNumber: e.target.value})} placeholder="es. PO-019" />{errors.poNumber && <div className="form-error">{errors.poNumber}</div>}</div>
-          <div className="form-group"><label className="form-label">Fornitore</label><input className={`form-input ${errors.supplier ? 'error' : ''}`} value={form.supplier} onChange={e => setForm({...form, supplier: e.target.value})} placeholder="es. AutoTools SRL" />{errors.supplier && <div className="form-error">{errors.supplier}</div>}</div>
+          <div className="form-group"><label className="form-label">Numero PO</label><input className={`form-input ${errors.poNumber ? 'error' : ''}`} value={form.poNumber} onChange={e => setForm({...form, poNumber:e.target.value})} placeholder="es. PO-019" />{errors.poNumber && <div className="form-error">{errors.poNumber}</div>}</div>
+          <div className="form-group">
+            <label className="form-label">Fornitore</label>
+            <SearchableSelect options={supplierOpts} value={form.supplierId} onChange={v => setForm({...form, supplierId:v})} placeholder="Seleziona fornitore…" error={errors.supplierId} />
+            {errors.supplierId && <div className="form-error">{errors.supplierId}</div>}
+          </div>
         </div>
-        <div className="form-group"><label className="form-label">Articoli</label><input className={`form-input ${errors.items ? 'error' : ''}`} value={form.items} onChange={e => setForm({...form, items: e.target.value})} placeholder="es. OBD Scanner ×10, Cavi ×50" />{errors.items && <div className="form-error">{errors.items}</div>}</div>
+        <div className="form-group"><label className="form-label">Articoli</label><input className={`form-input ${errors.items ? 'error' : ''}`} value={form.items} onChange={e => setForm({...form, items:e.target.value})} placeholder="es. OBD Scanner ×10, Cavi ×50" />{errors.items && <div className="form-error">{errors.items}</div>}</div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total: e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
-          <div className="form-group"><label className="form-label">Data</label><input className={`form-input ${errors.date ? 'error' : ''}`} value={form.date} onChange={e => setForm({...form, date: e.target.value})} placeholder="es. 15 mag" />{errors.date && <div className="form-error">{errors.date}</div>}</div>
+          <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total:e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
+          <div className="form-group">
+            <label className="form-label">Data</label>
+            <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+            {errors.date && <div className="form-error">{errors.date}</div>}
+          </div>
         </div>
-        <div className="form-group"><label className="form-label">Stato</label>
-          <select className="form-select" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-            {Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Stato</label>
+            <select className="form-select" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
+              {Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="form-group"><label className="form-label">Tracking</label><input className="form-input" value={form.tracking} onChange={e => setForm({...form, tracking:e.target.value})} placeholder="https://track.corriere.it/..." /></div>
         </div>
         <div className="form-actions">
           <button className="btn-secondary" onClick={() => setModalOpen(false)}>Annulla</button>

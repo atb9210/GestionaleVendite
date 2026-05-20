@@ -1,9 +1,11 @@
-// Pagina Clienti — CRUD completo con filtri e ricerca
+// Pagina Clienti — CRUD con phone input + indirizzo opzionale
 import { useState } from 'react';
 import { useData, fmt, genId } from '../context/DataContext';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import PhoneInput from '../components/PhoneInput';
 
-const emptyForm = { name:'', city:'', firstChannel:'' };
+const emptyForm = { name:'', city:'', firstChannel:'', phone:{ countryCode:'IT', number:'' }, address:'', cap:'', country:'Italia' };
 
 export default function Customers() {
   const { customers, setCustomers, channels, getChannel, subscriptions, showToast } = useData();
@@ -19,7 +21,6 @@ export default function Customers() {
   const avgLtv = customers.length > 0 ? Math.round(customers.reduce((a, c) => a + c.ltv, 0) / customers.length) : 0;
   const subIds = new Set(subscriptions.map(s => s.customerId));
 
-  // ─── FILTRI E RICERCA ───
   const filtered = customers.filter(c => {
     if (filter === 'top_ltv') { if (c.ltv < avgLtv) return false; }
     else if (filter === 'subscription') { if (!subIds.has(c.id)) return false; }
@@ -30,27 +31,30 @@ export default function Customers() {
     return true;
   });
 
-  // ─── VALIDAZIONE ───
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = 'Nome obbligatorio';
     if (!form.city.trim()) e.city = 'Città obbligatoria';
     if (!form.firstChannel) e.firstChannel = 'Seleziona canale';
+    if (!form.phone.number.trim()) e.phone = 'Telefono obbligatorio';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ─── CRUD ───
   const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
-  const openEdit = (c) => { setForm({ name: c.name, city: c.city, firstChannel: c.firstChannel }); setEditingId(c.id); setErrors({}); setModalOpen(true); };
+  const openEdit = (c) => {
+    setForm({ name:c.name, city:c.city, firstChannel:c.firstChannel, phone:c.phone || { countryCode:'IT', number:'' }, address:c.address || '', cap:c.cap || '', country:c.country || 'Italia' });
+    setEditingId(c.id); setErrors({}); setModalOpen(true);
+  };
 
   const handleSave = () => {
     if (!validate()) return;
+    const data = { name:form.name.trim(), city:form.city.trim(), firstChannel:form.firstChannel, phone:form.phone, address:form.address.trim(), cap:form.cap.trim(), country:form.country.trim() };
     if (editingId) {
-      setCustomers(prev => prev.map(c => c.id === editingId ? { ...c, name: form.name.trim(), city: form.city.trim(), firstChannel: form.firstChannel } : c));
+      setCustomers(prev => prev.map(c => c.id === editingId ? { ...c, ...data } : c));
       showToast('Cliente aggiornato');
     } else {
-      setCustomers(prev => [...prev, { id: genId('c'), name: form.name.trim(), city: form.city.trim(), orders: 0, ltv: 0, last: '—', firstChannel: form.firstChannel }]);
+      setCustomers(prev => [...prev, { id:genId('c'), ...data, orders:0, ltv:0, last:'—' }]);
       showToast('Cliente creato');
     }
     setModalOpen(false);
@@ -60,6 +64,9 @@ export default function Customers() {
     setCustomers(prev => prev.filter(c => c.id !== deleteModal.id));
     setDeleteModal(null); showToast('Cliente eliminato', 'error');
   };
+
+  // SearchableSelect options for channels
+  const channelOptions = channels.map(c => ({ value:c.id, label:c.name }));
 
   return (
     <main className="page">
@@ -105,17 +112,31 @@ export default function Customers() {
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Modifica cliente' : 'Nuovo cliente'}>
-        <div className="form-group"><label className="form-label">Nome completo</label><input className={`form-input ${errors.name ? 'error' : ''}`} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="es. Marco Ferrari" />{errors.name && <div className="form-error">{errors.name}</div>}</div>
+        <div className="form-group"><label className="form-label">Nome completo</label><input className={`form-input ${errors.name ? 'error' : ''}`} value={form.name} onChange={e => setForm({...form, name:e.target.value})} placeholder="es. Marco Ferrari" />{errors.name && <div className="form-error">{errors.name}</div>}</div>
+
+        <div className="form-group">
+          <label className="form-label">Telefono *</label>
+          <PhoneInput value={form.phone} onChange={phone => setForm({...form, phone})} error={errors.phone} />
+          {errors.phone && <div className="form-error">{errors.phone}</div>}
+        </div>
+
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Città</label><input className={`form-input ${errors.city ? 'error' : ''}`} value={form.city} onChange={e => setForm({...form, city: e.target.value})} placeholder="es. Milano" />{errors.city && <div className="form-error">{errors.city}</div>}</div>
-          <div className="form-group"><label className="form-label">Primo canale</label>
-            <select className={`form-select ${errors.firstChannel ? 'error' : ''}`} value={form.firstChannel} onChange={e => setForm({...form, firstChannel: e.target.value})}>
-              <option value="">Seleziona…</option>
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div className="form-group"><label className="form-label">Città *</label><input className={`form-input ${errors.city ? 'error' : ''}`} value={form.city} onChange={e => setForm({...form, city:e.target.value})} placeholder="es. Milano" />{errors.city && <div className="form-error">{errors.city}</div>}</div>
+          <div className="form-group"><label className="form-label">Primo canale *</label>
+            <SearchableSelect options={channelOptions} value={form.firstChannel} onChange={v => setForm({...form, firstChannel:v})} placeholder="Seleziona canale…" error={errors.firstChannel} />
             {errors.firstChannel && <div className="form-error">{errors.firstChannel}</div>}
           </div>
         </div>
+
+        <div className="form-section">
+          <div className="form-section-title">📍 Indirizzo (opzionale)</div>
+          <div className="form-group"><label className="form-label">Indirizzo</label><input className="form-input" value={form.address} onChange={e => setForm({...form, address:e.target.value})} placeholder="es. Via Roma 10" /></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">CAP</label><input className="form-input" value={form.cap} onChange={e => setForm({...form, cap:e.target.value})} placeholder="es. 20100" /></div>
+            <div className="form-group"><label className="form-label">Paese</label><input className="form-input" value={form.country} onChange={e => setForm({...form, country:e.target.value})} placeholder="Italia" /></div>
+          </div>
+        </div>
+
         <div className="form-actions">
           <button className="btn-secondary" onClick={() => setModalOpen(false)}>Annulla</button>
           {editingId && <button className="btn-danger" onClick={() => { setModalOpen(false); setDeleteModal(customers.find(c => c.id === editingId)); }}>Elimina</button>}

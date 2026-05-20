@@ -7,7 +7,7 @@ const COLORS = ['#1877f2','#34a853','#e1306c','#818cf8','#f59e0b','#22c55e','#25
 const ICONS = ['📦','📣','💿','⛽','📄','🔌','💻','🔧','♻️','🔗','🎧','📱','🛒','✈️','🏠','📐'];
 
 export default function Settings() {
-  const { channels, setChannels, expenseCategories, setExpenseCategories, productTypes, setProductTypes, showToast } = useData();
+  const { channels, setChannels, expenseCategories, setExpenseCategories, productTypes, setProductTypes, suppliers, setSuppliers, showToast } = useData();
 
   const [goals, setGoals] = useState({ monthlyProfit:'€ 4.000', marginTarget:'60%', mrrTarget:'€ 3.000' });
 
@@ -83,6 +83,25 @@ export default function Settings() {
     setDeleteModal(null); showToast('Tipo prodotto rimosso', 'error');
   };
 
+  // ─── Supplier CRUD ───
+  const openSupplierCreate = () => { setForm({ name:'', contact:'', phone:'' }); setModal({ type:'supplier', editItem:null }); setErrors({}); };
+  const openSupplierEdit = (s) => { setForm({ name:s.name, contact:s.contact, phone:s.phone }); setModal({ type:'supplier', editItem:s }); setErrors({}); };
+  const saveSupplier = () => {
+    if (!form.name.trim()) { setErrors({ name:'Nome obbligatorio' }); return; }
+    if (modal.editItem) {
+      setSuppliers(prev => prev.map(s => s.id === modal.editItem.id ? { ...s, name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() } : s));
+      showToast('Fornitore aggiornato');
+    } else {
+      setSuppliers(prev => [...prev, { id:genId('sup'), name:form.name.trim(), contact:form.contact.trim(), phone:form.phone.trim() }]);
+      showToast('Fornitore aggiunto');
+    }
+    setModal({ type:null, editItem:null });
+  };
+  const deleteSupplier = () => {
+    setSuppliers(prev => prev.filter(s => s.id !== deleteModal.id));
+    setDeleteModal(null); showToast('Fornitore rimosso', 'error');
+  };
+
   const closeModal = () => setModal({ type:null, editItem:null });
 
   return (
@@ -153,6 +172,24 @@ export default function Settings() {
         <div className="settings-row" style={{ justifyContent:'center' }}><button className="btn-secondary" style={{ width:'100%', justifyContent:'center' }} onClick={openProdTypeCreate}>+ Aggiungi tipo prodotto</button></div>
       </div>
 
+      {/* Fornitori */}
+      <div className="settings-section">
+        <div className="settings-section-head"><div className="settings-section-title">Fornitori</div><div className="settings-section-sub">Lista fornitori per acquisti</div></div>
+        {suppliers.map((sup) => (
+          <div key={sup.id} className="settings-row" style={{ cursor:'pointer' }} onClick={() => openSupplierEdit(sup)}>
+            <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
+              <span style={{ fontSize:'13px' }}>🏭</span>
+              <div><span style={{ fontSize:'13px', fontWeight:500 }}>{sup.name}</span>{sup.contact && <span style={{ fontSize:'11px', color:'var(--text3)', marginLeft:'8px' }}>{sup.contact}</span>}</div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <span className="badge badge-muted">attivo</span>
+              <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteModal({ ...sup, _type:'supplier' }); }} title="Rimuovi">✕</button>
+            </div>
+          </div>
+        ))}
+        <div className="settings-row" style={{ justifyContent:'center' }}><button className="btn-secondary" style={{ width:'100%', justifyContent:'center' }} onClick={openSupplierCreate}>+ Aggiungi fornitore</button></div>
+      </div>
+
       {/* Team & ruoli */}
       <div className="settings-section">
         <div className="settings-section-head"><div className="settings-section-title">Team &amp; ruoli</div><div className="settings-section-sub">Chi può vedere cosa</div></div>
@@ -198,6 +235,16 @@ export default function Settings() {
         <div className="form-actions"><button className="btn-secondary" onClick={closeModal}>Annulla</button><button className="btn-primary" onClick={saveProdType}>{modal.editItem ? 'Salva' : 'Aggiungi'}</button></div>
       </Modal>
 
+      {/* ─── MODAL: Fornitore ─── */}
+      <Modal isOpen={modal.type === 'supplier'} onClose={closeModal} title={modal.editItem ? 'Modifica fornitore' : 'Nuovo fornitore'}>
+        <div className="form-group"><label className="form-label">Nome</label><input className={`form-input ${errors.name ? 'error' : ''}`} value={form.name || ''} onChange={e => setForm({...form, name:e.target.value})} placeholder="es. AutoTools SRL" />{errors.name && <div className="form-error">{errors.name}</div>}</div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Email / Contatto</label><input className="form-input" value={form.contact || ''} onChange={e => setForm({...form, contact:e.target.value})} placeholder="es. info@fornitore.it" /></div>
+          <div className="form-group"><label className="form-label">Telefono</label><input className="form-input" value={form.phone || ''} onChange={e => setForm({...form, phone:e.target.value})} placeholder="es. +39 02 1234567" /></div>
+        </div>
+        <div className="form-actions"><button className="btn-secondary" onClick={closeModal}>Annulla</button><button className="btn-primary" onClick={saveSupplier}>{modal.editItem ? 'Salva' : 'Aggiungi'}</button></div>
+      </Modal>
+
       {/* ─── MODAL: Conferma eliminazione ─── */}
       <Modal isOpen={!!deleteModal} onClose={() => setDeleteModal(null)} title="Conferma rimozione">
         <p className="confirm-text">Rimuovere <span className="confirm-highlight">{deleteModal?.label || deleteModal?.name}</span>?</p>
@@ -207,6 +254,7 @@ export default function Settings() {
             if (deleteModal._type === 'channel') deleteChannel();
             else if (deleteModal._type === 'expcat') deleteExpCat();
             else if (deleteModal._type === 'prodtype') deleteProdType();
+            else if (deleteModal._type === 'supplier') deleteSupplier();
           }}>Rimuovi</button>
         </div>
       </Modal>

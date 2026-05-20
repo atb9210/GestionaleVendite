@@ -86,6 +86,13 @@ const INIT_EXPENSES = [
   { id:'e5', date:'12 mag', cat:'carburante', desc:'Carburante furgone consegne',        amount:60,  channel:null  },
 ];
 
+const INIT_SUPPLIERS = [
+  { id:'sup1', name:'AutoTools SRL',  contact:'info@autotools.it',  phone:'+39 02 1234567' },
+  { id:'sup2', name:'Autel Italy',    contact:'vendite@autel.it',   phone:'+39 06 9876543' },
+  { id:'sup3', name:'TechParts EU',   contact:'orders@techparts.eu',phone:'+49 30 5551234' },
+  { id:'sup4', name:'OBD Direct',     contact:'sales@obddirect.com',phone:'+44 20 7891234' },
+];
+
 const INIT_CONVERSATIONS = [
   { id:'conv1', contactName:'Marco Ferrari', phone:'+39 333 1234567', customerId:'c1', orderId:'o1', status:'converted',
     messages:[
@@ -158,6 +165,7 @@ export function DataProvider({ children }) {
   const [subscriptions, setSubscriptions] = useState(INIT_SUBSCRIPTIONS);
   const [purchases, setPurchases]         = useState(INIT_PURCHASES);
   const [expenses, setExpenses]           = useState(INIT_EXPENSES);
+  const [suppliers, setSuppliers]         = useState(INIT_SUPPLIERS);
   const [conversations, setConversations] = useState(INIT_CONVERSATIONS);
   const [msgTemplates, setMsgTemplates]   = useState(INIT_MSG_TEMPLATES);
   const [toast, setToast]                 = useState({ show: false, message: '', type: 'success' });
@@ -185,6 +193,7 @@ export function DataProvider({ children }) {
     subscriptions, setSubscriptions,
     purchases, setPurchases,
     expenses, setExpenses,
+    suppliers, setSuppliers,
     conversations, setConversations,
     msgTemplates, setMsgTemplates,
     // Lookups

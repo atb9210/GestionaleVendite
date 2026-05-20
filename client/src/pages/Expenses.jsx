@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useData, fmt, genId } from '../context/DataContext';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import DatePicker from '../components/DatePicker';
 
 const emptyForm = { cat:'', desc:'', amount:'', channel:'', date:'' };
 
@@ -40,7 +42,7 @@ export default function Expenses() {
     return Object.keys(e).length === 0;
   };
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
   const openEdit = (exp) => { setForm({ cat: exp.cat, desc: exp.desc, amount: String(exp.amount), channel: exp.channel || '', date: exp.date }); setEditingId(exp.id); setErrors({}); setModalOpen(true); };
 
   const handleSave = () => {
@@ -114,23 +116,20 @@ export default function Expenses() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Modifica spesa' : 'Nuova spesa'}>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Categoria</label>
-            <select className={`form-select ${errors.cat ? 'error' : ''}`} value={form.cat} onChange={e => setForm({...form, cat: e.target.value})}>
-              <option value="">Seleziona…</option>
-              {expenseCategories.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
-            </select>
+            <SearchableSelect options={expenseCategories.map(c => ({ value:c.key, label:c.label, icon:c.icon }))} value={form.cat} onChange={v => setForm({...form, cat:v})} placeholder="Seleziona categoria…" error={errors.cat} />
             {errors.cat && <div className="form-error">{errors.cat}</div>}
           </div>
           <div className="form-group"><label className="form-label">Canale (opz.)</label>
-            <select className="form-select" value={form.channel} onChange={e => setForm({...form, channel: e.target.value})}>
-              <option value="">Nessuno</option>
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <SearchableSelect options={[{ value:'', label:'Nessuno' }, ...channels.map(c => ({ value:c.id, label:c.name }))]} value={form.channel} onChange={v => setForm({...form, channel:v})} placeholder="Nessuno" />
           </div>
         </div>
         <div className="form-group"><label className="form-label">Descrizione</label><input className={`form-input ${errors.desc ? 'error' : ''}`} value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} placeholder="es. Spend Facebook Ads" />{errors.desc && <div className="form-error">{errors.desc}</div>}</div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Importo (€)</label><input className={`form-input ${errors.amount ? 'error' : ''}`} type="number" min="0" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />{errors.amount && <div className="form-error">{errors.amount}</div>}</div>
-          <div className="form-group"><label className="form-label">Data</label><input className={`form-input ${errors.date ? 'error' : ''}`} value={form.date} onChange={e => setForm({...form, date: e.target.value})} placeholder="es. 15 mag" />{errors.date && <div className="form-error">{errors.date}</div>}</div>
+          <div className="form-group"><label className="form-label">Data</label>
+            <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+            {errors.date && <div className="form-error">{errors.date}</div>}
+          </div>
         </div>
         <div className="form-actions">
           <button className="btn-secondary" onClick={() => setModalOpen(false)}>Annulla</button>

@@ -1,7 +1,9 @@
-// Pagina Ordini — CRUD completo con filtri e ricerca
+// Pagina Ordini — CRUD con SearchableSelect, DatePicker, toggle spedizione/abbonamento
 import { useState } from 'react';
 import { useData, fmt, genId } from '../context/DataContext';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import DatePicker from '../components/DatePicker';
 
 const STATUS = {
   paid:     { label:'Pagato',      cls:'badge-green' },
@@ -11,10 +13,12 @@ const STATUS = {
   active:   { label:'Attivo',      cls:'badge-green' },
 };
 
-const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'' };
+const emptyShipping = { address:'', civico:'', cap:'', country:'Italia', tracking:'', contrassegno:false };
+const emptySub = { planId:'', amount:'', startDate:'' };
+const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
 
 export default function Orders() {
-  const { orders, setOrders, customers, products, channels, getChannel, getCustomer, getProduct, showToast } = useData();
+  const { orders, setOrders, customers, products, channels, subscriptions, setSubscriptions, getChannel, getCustomer, getProduct, showToast } = useData();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,7 +27,6 @@ export default function Orders() {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
 
-  // ─── FILTRI E RICERCA ───
   const filtered = orders.filter(o => {
     if (filter !== 'all' && o.status !== filter) return false;
     if (search) {
@@ -41,7 +44,6 @@ export default function Orders() {
   const ticket = orders.length > 0 ? Math.round(totalRev / orders.length) : 0;
   const filterCounts = { paid: orders.filter(o => o.status === 'paid').length, pending: orders.filter(o => o.status === 'pending').length, shipped: orders.filter(o => o.status === 'shipped').length, refunded: orders.filter(o => o.status === 'refunded').length };
 
-  // ─── VALIDAZIONE ───
   const validate = () => {
     const e = {};
     if (!form.customerId) e.customerId = 'Seleziona cliente';
@@ -50,26 +52,46 @@ export default function Orders() {
     if (!form.total || isNaN(Number(form.total)) || Number(form.total) <= 0) e.total = 'Totale non valido';
     if (!form.cogs || isNaN(Number(form.cogs)) || Number(form.cogs) < 0) e.cogs = 'COGS non valido';
     if (!form.date) e.date = 'Data obbligatoria';
+    if (form.shipping) {
+      if (!form.shippingData.address.trim()) e.shipAddress = 'Indirizzo obbligatorio';
+      if (!form.shippingData.cap.trim()) e.shipCap = 'CAP obbligatorio';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ─── CRUD ───
   const nextOrderNum = () => '#' + (1042 + orders.length + 1);
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setModalOpen(true); };
   const openEdit = (order) => {
-    setForm({ customerId: order.customerId, productId: order.productId, channel: order.channel, total: String(order.total), cogs: String(order.cogs), status: order.status, date: order.date });
+    setForm({
+      customerId:order.customerId, productId:order.productId, channel:order.channel,
+      total:String(order.total), cogs:String(order.cogs), status:order.status, date:order.date,
+      shipping:!!order.shippingData, shippingData:order.shippingData || emptyShipping,
+      subscription:!!order.subData, subData:order.subData || emptySub,
+    });
     setEditingId(order.id); setErrors({}); setModalOpen(true);
   };
 
   const handleSave = () => {
     if (!validate()) return;
+    const orderData = {
+      customerId:form.customerId, productId:form.productId, channel:form.channel,
+      total:Number(form.total), cogs:Number(form.cogs), status:form.status, date:form.date,
+      shippingData: form.shipping ? form.shippingData : null,
+      subData: form.subscription ? form.subData : null,
+    };
     if (editingId) {
-      setOrders(prev => prev.map(o => o.id === editingId ? { ...o, customerId: form.customerId, productId: form.productId, channel: form.channel, total: Number(form.total), cogs: Number(form.cogs), status: form.status, date: form.date } : o));
+      setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...orderData } : o));
       showToast('Ordine aggiornato');
     } else {
-      setOrders(prev => [{ id: genId('o'), orderNumber: nextOrderNum(), customerId: form.customerId, productId: form.productId, channel: form.channel, total: Number(form.total), cogs: Number(form.cogs), status: form.status, date: form.date }, ...prev]);
+      const newOrder = { id:genId('o'), orderNumber:nextOrderNum(), ...orderData };
+      setOrders(prev => [newOrder, ...prev]);
+      // If subscription toggle is on, also create subscription
+      if (form.subscription && form.subData.planId) {
+        const prod = getProduct(form.subData.planId);
+        setSubscriptions(prev => [...prev, { id:genId('s'), customerId:form.customerId, plan:prod?.name || 'Abbonamento', mrr:Number(form.subData.amount) || 0, next:form.subData.startDate || form.date, status:'active' }]);
+      }
       showToast('Ordine creato');
     }
     setModalOpen(false);
@@ -79,6 +101,13 @@ export default function Orders() {
     setOrders(prev => prev.filter(o => o.id !== deleteModal.id));
     setDeleteModal(null); showToast('Ordine eliminato', 'error');
   };
+
+  // Options for SearchableSelect
+  const customerOpts = customers.map((c, i) => ({ value:c.id, label:c.name, recent: i < 3 }));
+  const productOpts = products.map((p, i) => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}`, recent: i < 3 }));
+  const channelOpts = channels.map(c => ({ value:c.id, label:c.name }));
+  const subProducts = products.filter(p => p.type === 'sub');
+  const subOpts = subProducts.map(p => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}/mese` }));
 
   return (
     <main className="page">
@@ -134,42 +163,81 @@ export default function Orders() {
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">Cliente</label>
-            <select className={`form-select ${errors.customerId ? 'error' : ''}`} value={form.customerId} onChange={e => setForm({...form, customerId: e.target.value})}>
-              <option value="">Seleziona…</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <SearchableSelect options={customerOpts} value={form.customerId} onChange={v => setForm({...form, customerId:v})} placeholder="Seleziona cliente…" error={errors.customerId} />
             {errors.customerId && <div className="form-error">{errors.customerId}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Prodotto</label>
-            <select className={`form-select ${errors.productId ? 'error' : ''}`} value={form.productId} onChange={e => { const p = products.find(p => p.id === e.target.value); setForm({...form, productId: e.target.value, total: p ? String(p.price) : form.total, cogs: p ? String(p.cost) : form.cogs }); }}>
-              <option value="">Seleziona…</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} — {fmt(p.price)}</option>)}
-            </select>
+            <SearchableSelect options={productOpts} value={form.productId} onChange={v => { const p = products.find(x => x.id === v); setForm({...form, productId:v, total: p ? String(p.price) : form.total, cogs: p ? String(p.cost) : form.cogs }); }} placeholder="Seleziona prodotto…" error={errors.productId} />
             {errors.productId && <div className="form-error">{errors.productId}</div>}
           </div>
         </div>
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">Canale</label>
-            <select className={`form-select ${errors.channel ? 'error' : ''}`} value={form.channel} onChange={e => setForm({...form, channel: e.target.value})}>
-              <option value="">Seleziona…</option>
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <SearchableSelect options={channelOpts} value={form.channel} onChange={v => setForm({...form, channel:v})} placeholder="Seleziona canale…" error={errors.channel} />
             {errors.channel && <div className="form-error">{errors.channel}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Stato</label>
-            <select className="form-select" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+            <select className="form-select" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
               {Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total: e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
-          <div className="form-group"><label className="form-label">COGS (€)</label><input className={`form-input ${errors.cogs ? 'error' : ''}`} type="number" min="0" value={form.cogs} onChange={e => setForm({...form, cogs: e.target.value})} />{errors.cogs && <div className="form-error">{errors.cogs}</div>}</div>
+          <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total:e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
+          <div className="form-group"><label className="form-label">COGS (€)</label><input className={`form-input ${errors.cogs ? 'error' : ''}`} type="number" min="0" value={form.cogs} onChange={e => setForm({...form, cogs:e.target.value})} />{errors.cogs && <div className="form-error">{errors.cogs}</div>}</div>
         </div>
-        <div className="form-group"><label className="form-label">Data</label><input className={`form-input ${errors.date ? 'error' : ''}`} value={form.date} onChange={e => setForm({...form, date: e.target.value})} placeholder="es. 18 mag" />{errors.date && <div className="form-error">{errors.date}</div>}</div>
+        <div className="form-group">
+          <label className="form-label">Data</label>
+          <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+          {errors.date && <div className="form-error">{errors.date}</div>}
+        </div>
+
+        {/* ─── TOGGLE SPEDIZIONE ─── */}
+        <div className="form-toggle" onClick={() => setForm({...form, shipping:!form.shipping})}>
+          <div className={`form-toggle-switch ${form.shipping ? 'active' : ''}`}></div>
+          <div><div className="form-toggle-label">📦 Spedizione</div><div className="form-toggle-sub">Aggiungi dati di spedizione all'ordine</div></div>
+        </div>
+        {form.shipping && (
+          <div className="form-section">
+            <div className="form-section-title">🚚 Dati spedizione</div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Indirizzo *</label><input className={`form-input ${errors.shipAddress ? 'error' : ''}`} value={form.shippingData.address} onChange={e => setForm({...form, shippingData:{...form.shippingData, address:e.target.value}})} placeholder="es. Via Roma" />{errors.shipAddress && <div className="form-error">{errors.shipAddress}</div>}</div>
+              <div className="form-group"><label className="form-label">Civico</label><input className="form-input" value={form.shippingData.civico} onChange={e => setForm({...form, shippingData:{...form.shippingData, civico:e.target.value}})} placeholder="es. 10" /></div>
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">CAP *</label><input className={`form-input ${errors.shipCap ? 'error' : ''}`} value={form.shippingData.cap} onChange={e => setForm({...form, shippingData:{...form.shippingData, cap:e.target.value}})} placeholder="es. 20100" />{errors.shipCap && <div className="form-error">{errors.shipCap}</div>}</div>
+              <div className="form-group"><label className="form-label">Paese</label><input className="form-input" value={form.shippingData.country} onChange={e => setForm({...form, shippingData:{...form.shippingData, country:e.target.value}})} placeholder="Italia" /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Tracking link</label><input className="form-input" value={form.shippingData.tracking} onChange={e => setForm({...form, shippingData:{...form.shippingData, tracking:e.target.value}})} placeholder="https://track.corriere.it/..." /></div>
+            <div className="form-toggle" onClick={() => setForm({...form, shippingData:{...form.shippingData, contrassegno:!form.shippingData.contrassegno}})}>
+              <div className={`form-toggle-switch ${form.shippingData.contrassegno ? 'active' : ''}`}></div>
+              <div className="form-toggle-label">💵 Contrassegno</div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TOGGLE ABBONAMENTO ─── */}
+        <div className="form-toggle" onClick={() => setForm({...form, subscription:!form.subscription})}>
+          <div className={`form-toggle-switch ${form.subscription ? 'active' : ''}`}></div>
+          <div><div className="form-toggle-label">♻️ Abbonamento</div><div className="form-toggle-sub">Collega un piano ricorrente a questo ordine</div></div>
+        </div>
+        {form.subscription && (
+          <div className="form-section">
+            <div className="form-section-title">♻️ Dati abbonamento</div>
+            <div className="form-group">
+              <label className="form-label">Piano</label>
+              <SearchableSelect options={subOpts} value={form.subData.planId} onChange={v => { const p = subProducts.find(x => x.id === v); setForm({...form, subData:{...form.subData, planId:v, amount: p ? String(p.price) : form.subData.amount }}); }} placeholder="Seleziona abbonamento…" />
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Importo (€/mese)</label><input className="form-input" type="number" min="0" value={form.subData.amount} onChange={e => setForm({...form, subData:{...form.subData, amount:e.target.value}})} /></div>
+              <div className="form-group"><label className="form-label">Data attivazione</label><DatePicker value={form.subData.startDate || form.date} onChange={v => setForm({...form, subData:{...form.subData, startDate:v}})} /></div>
+            </div>
+          </div>
+        )}
+
         <div className="form-actions">
           <button className="btn-secondary" onClick={() => setModalOpen(false)}>Annulla</button>
           {editingId && <button className="btn-danger" onClick={() => { setModalOpen(false); setDeleteModal(orders.find(o => o.id === editingId)); }}>Elimina</button>}
