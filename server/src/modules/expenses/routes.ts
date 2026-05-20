@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import prisma from '../config/prisma';
+import prisma from '../../config/prisma';
 import { z } from 'zod';
-import { validate } from '../middleware/validate';
+import { validate } from '../../middleware/validate';
 
 const router = Router();
 

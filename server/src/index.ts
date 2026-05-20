@@ -5,19 +5,27 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { errorHandler } from './middleware/errorHandler';
-import channelsRouter from './routes/channels';
-import productTypesRouter from './routes/productTypes';
-import expenseCategoriesRouter from './routes/expenseCategories';
-import suppliersRouter from './routes/suppliers';
-import productsRouter from './routes/products';
-import customersRouter from './routes/customers';
-import ordersRouter from './routes/orders';
-import subscriptionsRouter from './routes/subscriptions';
-import purchasesRouter from './routes/purchases';
-import expensesRouter from './routes/expenses';
-import conversationsRouter from './routes/conversations';
-import msgTemplatesRouter from './routes/msgTemplates';
-import analyticsRouter from './routes/analytics';
+
+// ── Moduli dominio (1 modulo ≈ 1 pagina frontend) ──
+import customersRouter      from './modules/customers/routes';
+import ordersRouter         from './modules/orders/routes';
+import productsRouter       from './modules/products/routes';
+import subscriptionsRouter  from './modules/subscriptions/routes';
+import purchasesRouter      from './modules/purchases/routes';
+import expensesRouter       from './modules/expenses/routes';
+
+// Communications (gestita dalla pagina Communications)
+import conversationsRouter  from './modules/communications/conversations.routes';
+import msgTemplatesRouter   from './modules/communications/msgTemplates.routes';
+
+// Settings (4 entità di configurazione)
+import channelsRouter           from './modules/settings/channels.routes';
+import suppliersRouter          from './modules/settings/suppliers.routes';
+import productTypesRouter       from './modules/settings/productTypes.routes';
+import expenseCategoriesRouter  from './modules/settings/expenseCategories.routes';
+
+// Dashboard & Reports (analytics)
+import analyticsRouter      from './modules/dashboard/analytics.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

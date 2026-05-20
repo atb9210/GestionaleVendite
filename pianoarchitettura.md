@@ -31,9 +31,42 @@ File di configurazione base
 - [x] Step 4: Frontend layout (Sidebar, TopNav, Layout)
 - [x] Step 5–6: Pagine collegate al backend via DataContext
 - [x] Step 7: Integrazione end-to-end (POST/PUT/DELETE persistono nel DB)
-- [ ] **Step 8: UI reattiva con Optimistic Updates** ← prossimo
-- [ ] Step 9: Analytics reali in Dashboard
-- [ ] Step 10: Settings completo (goals, canali, categorie)
+- [x] Step 8: UI reattiva con Optimistic Updates
+- [x] Step 8.5: Refactor backend → struttura `modules/` mirror pagine frontend
+- [ ] **Step 9: Dashboard con analytics reali** ← prossimo
+- [ ] Step 10: Reports page con charts
+- [ ] Step 11: Settings completo (goals, canali, categorie)
+
+## Step 8.5 — Backend modulare (fatto)
+
+Riorganizzato `server/src/` per rispecchiare l'organizzazione del frontend.
+
+```
+server/src/
+├── modules/                      ← 1 modulo ≈ 1 pagina frontend
+│   ├── customers/routes.ts
+│   ├── orders/routes.ts
+│   ├── products/routes.ts
+│   ├── subscriptions/routes.ts
+│   ├── purchases/routes.ts
+│   ├── expenses/routes.ts
+│   ├── communications/
+│   │   ├── conversations.routes.ts
+│   │   └── msgTemplates.routes.ts
+│   ├── settings/
+│   │   ├── channels.routes.ts
+│   │   ├── suppliers.routes.ts
+│   │   ├── productTypes.routes.ts
+│   │   └── expenseCategories.routes.ts
+│   └── dashboard/analytics.routes.ts
+├── middleware/                   ← errorHandler, validate
+├── config/                       ← env, prisma client
+├── utils/                        ← pagination
+└── index.ts                      ← bootstrap Express
+```
+
+Spostamenti fatti con `git mv` (history preservata). Import aggiornati `../` → `../../`.
+Endpoint testati post-refactor: tutti OK.
 
 ## Step 8 — Optimistic UI (in corso)
 
