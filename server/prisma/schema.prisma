@@ -52,6 +52,7 @@ model Customer {
   city          String
   phone         Json?
   address       String?
+  civico        String?
   cap           String?
   country       String    @default("Italia")
   firstChannel  String?
@@ -98,6 +99,7 @@ model Order {
   shippingCap      String?
   shippingCountry  String?
   shippingTracking String?
+  shippingPhone    Json?
   contrassegno     Boolean       @default(false)
   subscriptionId   String?
   subscription     Subscription? @relation(fields: [subscriptionId], references: [id])

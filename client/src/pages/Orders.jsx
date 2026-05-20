@@ -1,6 +1,6 @@
 // Pagina Ordini — CRUD con SearchableSelect, DatePicker, toggle spedizione/abbonamento
 import { useState } from 'react';
-import { useData, fmt, genId } from '../context/DataContext';
+import { useData, fmt } from '../context/DataContext';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import DatePicker from '../components/DatePicker';
@@ -14,9 +14,9 @@ const STATUS = {
   active:   { label:'Attivo',      cls:'badge-green' },
 };
 
-const emptyShipping = { address:'', civico:'', cap:'', country:'Italia', tracking:'', contrassegno:false };
+const emptyShipping = { address:'', civico:'', cap:'', country:'Italia', tracking:'', contrassegno:false, phone:{ countryCode:'IT', number:'' } };
 const emptySub = { planId:'', amount:'', startDate:'' };
-const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', phone:{ countryCode:'IT', number:'' }, shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
+const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
 
 export default function Orders() {
   const { orders, customers, products, channels, subscriptions, getChannel, getCustomer, getProduct, showToast, createOrder, updateOrder, deleteOrder, createSubscription } = useData();
@@ -63,7 +63,7 @@ export default function Orders() {
     return Object.keys(e).length === 0;
   };
 
-  const nextOrderNum = () => '#' + (1042 + orders.length + 1);
+
 
   const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true); };
   const openEdit = (order) => {
@@ -74,8 +74,7 @@ export default function Orders() {
       customerId:order.customerId, productId:order.productId, channel:order.channel,
       total:String(order.total), cogs:String(order.cogs), status:order.status,
       date: order._rawDate ? order._rawDate.split('T')[0] : order.date,
-      phone: cust?.phone || { countryCode:'IT', number:'' },
-      shipping:!!order.shippingAddress, shippingData: order.shippingAddress ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false } : emptyShipping,
+      shipping:!!order.shippingAddress, shippingData: order.shippingAddress ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false, phone: order.shippingPhone || cust?.phone || emptyShipping.phone } : { ...emptyShipping, phone: cust?.phone || emptyShipping.phone },
       subscription:!!order.subscriptionId, subData: existingSub ? { planId: subProd?.id || '', amount: String(existingSub.mrr || ''), startDate: existingSub._rawNext ? existingSub._rawNext.split('T')[0] : '' } : emptySub,
     });
     setEditingId(order.id); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true);
@@ -86,7 +85,7 @@ export default function Orders() {
     const orderData = {
       customerId:form.customerId, productId:form.productId, channelId:form.channel,
       total:Number(form.total), cogs:Number(form.cogs), status:form.status.toUpperCase(), date:form.date,
-      ...(form.shipping && { shippingData: { address:form.shippingData.address, civico:form.shippingData.civico, cap:form.shippingData.cap, country:form.shippingData.country, tracking:form.shippingData.tracking, contrassegno:form.shippingData.contrassegno } }),
+      ...(form.shipping && { shippingData: { address:form.shippingData.address, civico:form.shippingData.civico, cap:form.shippingData.cap, country:form.shippingData.country, tracking:form.shippingData.tracking, contrassegno:form.shippingData.contrassegno, phone: form.shippingData.phone?.number ? form.shippingData.phone : undefined } }),
     };
     setModalOpen(false);
     try {
@@ -178,9 +177,10 @@ export default function Orders() {
               const hasAddr = !!(c?.address);
               if (hasAddr) setShipOpen(true);
               setForm({ ...form, customerId: v,
-                phone: c?.phone || { countryCode:'IT', number:'' },
                 shipping: hasAddr || form.shipping,
-                shippingData: hasAddr ? { ...emptyShipping, address: c.address||'', cap: c.cap||'', country: c.country||'Italia' } : form.shippingData,
+                shippingData: hasAddr
+                  ? { ...emptyShipping, address: c.address||'', civico: c.civico||'', cap: c.cap||'', country: c.country||'Italia', phone: c.phone || emptyShipping.phone }
+                  : { ...form.shippingData, phone: c?.phone || form.shippingData.phone },
               });
             }} placeholder="Seleziona cliente…" error={errors.customerId} />
             {errors.customerId && <div className="form-error">{errors.customerId}</div>}
@@ -208,16 +208,10 @@ export default function Orders() {
           <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total:e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
           <div className="form-group"><label className="form-label">COGS (€)</label><input className={`form-input ${errors.cogs ? 'error' : ''}`} type="number" min="0" value={form.cogs} onChange={e => setForm({...form, cogs:e.target.value})} />{errors.cogs && <div className="form-error">{errors.cogs}</div>}</div>
         </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Data</label>
-            <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
-            {errors.date && <div className="form-error">{errors.date}</div>}
-          </div>
-          <div className="form-group">
-            <label className="form-label">Telefono</label>
-            <PhoneInput value={form.phone} onChange={phone => setForm({...form, phone})} />
-          </div>
+        <div className="form-group">
+          <label className="form-label">Data</label>
+          <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+          {errors.date && <div className="form-error">{errors.date}</div>}
         </div>
 
         {/* ─── TOGGLE SPEDIZIONE ─── */}
@@ -238,6 +232,10 @@ export default function Orders() {
             <div className="form-row">
               <div className="form-group"><label className="form-label">CAP *</label><input className={`form-input ${errors.shipCap ? 'error' : ''}`} value={form.shippingData.cap} onChange={e => setForm({...form, shippingData:{...form.shippingData, cap:e.target.value}})} placeholder="es. 20100" />{errors.shipCap && <div className="form-error">{errors.shipCap}</div>}</div>
               <div className="form-group"><label className="form-label">Paese</label><input className="form-input" value={form.shippingData.country} onChange={e => setForm({...form, shippingData:{...form.shippingData, country:e.target.value}})} placeholder="Italia" /></div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Telefono spedizione</label>
+              <PhoneInput value={form.shippingData.phone} onChange={phone => setForm({...form, shippingData:{...form.shippingData, phone}})} />
             </div>
             <div className="form-group"><label className="form-label">Tracking link</label><input className="form-input" value={form.shippingData.tracking} onChange={e => setForm({...form, shippingData:{...form.shippingData, tracking:e.target.value}})} placeholder="https://track.corriere.it/..." /></div>
             <div className="form-toggle" onClick={() => setForm({...form, shippingData:{...form.shippingData, contrassegno:!form.shippingData.contrassegno}})}>

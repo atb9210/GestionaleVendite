@@ -13,6 +13,7 @@ const CustomerSchema = z.object({
     number: z.string().min(1),
   }).nullable().optional(),
   address: z.string().optional(),
+  civico: z.string().optional(),
   cap: z.string().optional(),
   country: z.string().default('Italia'),
   firstChannel: z.string().nullable().optional(),
@@ -45,8 +46,12 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.post('/', validate(CustomerSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { firstChannel, ...rest } = req.body;
     const customer = await prisma.customer.create({
-      data: req.body,
+      data: {
+        ...rest,
+        ...(firstChannel && { channel: { connect: { id: firstChannel } } }),
+      },
       include: { channel: true },
     });
     res.status(201).json(customer);
@@ -55,9 +60,15 @@ router.post('/', validate(CustomerSchema), async (req: Request, res: Response, n
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { firstChannel, ...rest } = req.body;
     const customer = await prisma.customer.update({
-      where: { id: req.params.id },
-      data: req.body,
+      where: { id: req.params.id as string },
+      data: {
+        ...rest,
+        ...(firstChannel !== undefined && {
+          channel: firstChannel ? { connect: { id: firstChannel } } : { disconnect: true },
+        }),
+      },
       include: { channel: true },
     });
     res.json(customer);

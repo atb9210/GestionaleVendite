@@ -20,6 +20,7 @@ const OrderSchema = z.object({
     country: z.string().default('Italia'),
     tracking: z.string().optional(),
     contrassegno: z.boolean().default(false),
+    phone: z.object({ countryCode: z.string().default('IT'), number: z.string() }).optional(),
   }).optional(),
   subData: z.object({
     plan: z.string().min(1),
@@ -94,6 +95,7 @@ router.post('/', validate(OrderSchema), async (req: Request, res: Response, next
           shippingCap: shippingData.cap,
           shippingCountry: shippingData.country,
           shippingTracking: shippingData.tracking,
+          shippingPhone: shippingData.phone ?? null,
           contrassegno: shippingData.contrassegno || false,
         }),
       },
@@ -135,6 +137,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       data.shippingCap = shippingData.cap;
       data.shippingCountry = shippingData.country;
       data.shippingTracking = shippingData.tracking;
+      data.shippingPhone = shippingData.phone ?? null;
       data.contrassegno = shippingData.contrassegno || false;
     }
 

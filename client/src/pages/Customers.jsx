@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import PhoneInput from '../components/PhoneInput';
 
-const emptyForm = { name:'', city:'', firstChannel:'', phone:{ countryCode:'IT', number:'' }, address:'', cap:'', country:'Italia' };
+const emptyForm = { name:'', city:'', firstChannel:'', phone:{ countryCode:'IT', number:'' }, address:'', civico:'', cap:'', country:'Italia' };
 
 export default function Customers() {
   const { customers, channels, getChannel, subscriptions, showToast, createCustomer, updateCustomer, deleteCustomer } = useData();
@@ -43,13 +43,13 @@ export default function Customers() {
 
   const openCreate = () => { setForm(emptyForm); setEditingId(null); setErrors({}); setModalOpen(true); };
   const openEdit = (c) => {
-    setForm({ name:c.name, city:c.city, firstChannel:c.firstChannel, phone:c.phone || { countryCode:'IT', number:'' }, address:c.address || '', cap:c.cap || '', country:c.country || 'Italia' });
+    setForm({ name:c.name, city:c.city, firstChannel:c.firstChannel, phone:c.phone || { countryCode:'IT', number:'' }, address:c.address || '', civico:c.civico || '', cap:c.cap || '', country:c.country || 'Italia' });
     setEditingId(c.id); setErrors({}); setModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!validate()) return;
-    const data = { name:form.name.trim(), city:form.city.trim(), firstChannel:form.firstChannel, phone:form.phone, address:form.address.trim(), cap:form.cap.trim(), country:form.country.trim() };
+    const data = { name:form.name.trim(), city:form.city.trim(), firstChannel:form.firstChannel, phone:form.phone, address:form.address.trim(), civico:form.civico.trim(), cap:form.cap.trim(), country:form.country.trim() };
     setModalOpen(false);
     try {
       if (editingId) {
@@ -135,7 +135,10 @@ export default function Customers() {
 
         <div className="form-section">
           <div className="form-section-title">📍 Indirizzo (opzionale)</div>
-          <div className="form-group"><label className="form-label">Indirizzo</label><input className="form-input" value={form.address} onChange={e => setForm({...form, address:e.target.value})} placeholder="es. Via Roma 10" /></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Indirizzo</label><input className="form-input" value={form.address} onChange={e => setForm({...form, address:e.target.value})} placeholder="es. Via Roma" /></div>
+            <div className="form-group"><label className="form-label">Civico</label><input className="form-input" value={form.civico} onChange={e => setForm({...form, civico:e.target.value})} placeholder="es. 10" /></div>
+          </div>
           <div className="form-row">
             <div className="form-group"><label className="form-label">CAP</label><input className="form-input" value={form.cap} onChange={e => setForm({...form, cap:e.target.value})} placeholder="es. 20100" /></div>
             <div className="form-group"><label className="form-label">Paese</label><input className="form-input" value={form.country} onChange={e => setForm({...form, country:e.target.value})} placeholder="Italia" /></div>
