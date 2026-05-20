@@ -52,7 +52,7 @@ router.post('/', validate(ConversationSchema), async (req: Request, res: Respons
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const conversation = await prisma.conversation.update({
-      where: { id: req.params.id },
+      where: { id: (req.params.id as string) },
       data: req.body,
       include: { customer: true, messages: { orderBy: { createdAt: 'asc' } } },
     });
@@ -62,7 +62,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.conversation.delete({ where: { id: req.params.id } });
+    await prisma.conversation.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -71,7 +71,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/:id/messages', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const messages = await prisma.message.findMany({
-      where: { conversationId: req.params.id },
+      where: { conversationId: (req.params.id as string) },
       orderBy: { createdAt: 'asc' },
     });
     res.json(messages);
@@ -83,12 +83,12 @@ router.post('/:id/messages', validate(MessageSchema), async (req: Request, res: 
     const message = await prisma.message.create({
       data: {
         ...req.body,
-        conversationId: req.params.id,
+        conversationId: (req.params.id as string),
       },
     });
     // Update conversation updatedAt
     await prisma.conversation.update({
-      where: { id: req.params.id },
+      where: { id: (req.params.id as string) },
       data: { updatedAt: new Date() },
     });
     res.status(201).json(message);

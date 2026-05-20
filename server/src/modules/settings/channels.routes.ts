@@ -26,14 +26,14 @@ router.post('/', validate(ChannelSchema), async (req: Request, res: Response, ne
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const channel = await prisma.channel.update({ where: { id: req.params.id }, data: req.body });
+    const channel = await prisma.channel.update({ where: { id: (req.params.id as string) }, data: req.body });
     res.json(channel);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.channel.delete({ where: { id: req.params.id } });
+    await prisma.channel.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

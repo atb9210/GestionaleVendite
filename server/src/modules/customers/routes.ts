@@ -94,7 +94,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/:id/orders', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const orders = await prisma.order.findMany({
-      where: { customerId: req.params.id },
+      where: { customerId: req.params.id as string },
       include: { product: true, channel: true },
       orderBy: { date: 'desc' },
     });

@@ -26,14 +26,14 @@ router.post('/', validate(MsgTemplateSchema), async (req: Request, res: Response
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const template = await prisma.msgTemplate.update({ where: { id: req.params.id }, data: req.body });
+    const template = await prisma.msgTemplate.update({ where: { id: (req.params.id as string) }, data: req.body });
     res.json(template);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.msgTemplate.delete({ where: { id: req.params.id } });
+    await prisma.msgTemplate.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

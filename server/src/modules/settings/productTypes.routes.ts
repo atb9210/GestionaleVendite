@@ -27,14 +27,14 @@ router.post('/', validate(ProductTypeSchema), async (req: Request, res: Response
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const type = await prisma.productType.update({ where: { id: req.params.id }, data: req.body });
+    const type = await prisma.productType.update({ where: { id: (req.params.id as string) }, data: req.body });
     res.json(type);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.productType.delete({ where: { id: req.params.id } });
+    await prisma.productType.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

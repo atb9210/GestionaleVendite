@@ -51,7 +51,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       req.body.date = new Date(req.body.date);
     }
     const expense = await prisma.expense.update({
-      where: { id: req.params.id },
+      where: { id: (req.params.id as string) },
       data: req.body,
       include: { category: true, channel: true },
     });
@@ -61,7 +61,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.expense.delete({ where: { id: req.params.id } });
+    await prisma.expense.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

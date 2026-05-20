@@ -27,14 +27,14 @@ router.post('/', validate(SupplierSchema), async (req: Request, res: Response, n
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const supplier = await prisma.supplier.update({ where: { id: req.params.id }, data: req.body });
+    const supplier = await prisma.supplier.update({ where: { id: (req.params.id as string) }, data: req.body });
     res.json(supplier);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.supplier.delete({ where: { id: req.params.id } });
+    await prisma.supplier.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

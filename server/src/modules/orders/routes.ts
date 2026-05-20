@@ -142,7 +142,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     const order = await prisma.order.update({
-      where: { id: req.params.id },
+      where: { id: (req.params.id as string) },
       data,
       include: { customer: true, product: true, channel: true, subscription: true },
     });
@@ -152,7 +152,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    const order = await prisma.order.findUnique({ where: { id: (req.params.id as string) } });
     if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
 
     // Reverse customer LTV and ordersCount
@@ -173,7 +173,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
       });
     }
 
-    await prisma.order.delete({ where: { id: req.params.id } });
+    await prisma.order.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

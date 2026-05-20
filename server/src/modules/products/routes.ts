@@ -44,7 +44,7 @@ router.post('/', validate(ProductSchema), async (req: Request, res: Response, ne
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const product = await prisma.product.update({
-      where: { id: req.params.id },
+      where: { id: (req.params.id as string) },
       data: req.body,
       include: { type: true },
     });
@@ -54,7 +54,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.product.delete({ where: { id: req.params.id } });
+    await prisma.product.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });

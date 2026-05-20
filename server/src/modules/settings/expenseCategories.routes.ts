@@ -28,14 +28,14 @@ router.post('/', validate(ExpenseCategorySchema), async (req: Request, res: Resp
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const cat = await prisma.expenseCategory.update({ where: { id: req.params.id }, data: req.body });
+    const cat = await prisma.expenseCategory.update({ where: { id: (req.params.id as string) }, data: req.body });
     res.json(cat);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.expenseCategory.delete({ where: { id: req.params.id } });
+    await prisma.expenseCategory.delete({ where: { id: (req.params.id as string) } });
     res.status(204).send();
   } catch (err) { next(err); }
 });
