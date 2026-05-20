@@ -94,9 +94,10 @@ export const api = {
     delete: (id) => del(`/msg-templates/${id}`),
   },
   analytics: {
-    overview: () => get('/analytics/overview'),
-    revenue:  (period) => get(`/analytics/revenue?period=${period || '30d'}`),
-    channels: () => get('/analytics/channels'),
-    products: () => get('/analytics/products'),
+    overview:           (period) => get(`/analytics/overview?period=${period || 'month'}`),
+    revenue:            (period) => get(`/analytics/revenue?period=${period || '30d'}`),
+    channels:           (period) => get(`/analytics/channels?period=${period || 'month'}`),
+    products:           (period) => get(`/analytics/products?period=${period || 'month'}`),
+    recentTransactions: (limit)  => get(`/analytics/recent-transactions?limit=${limit || 6}`),
   },
 };

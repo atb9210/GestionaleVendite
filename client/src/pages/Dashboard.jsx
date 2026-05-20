@@ -1,258 +1,247 @@
-// Pagina Dashboard con KPIs e dati mock (basata su mockup dashboard.html)
-import { useState } from 'react';
+// Dashboard — KPIs reali dal backend analytics (con cache SWR)
+import { useState, useEffect, useMemo } from 'react';
+import { useData, fmt } from '../context/DataContext';
+import { api } from '../lib/api';
+import { dashCache } from '../lib/dashboardCache';
+
+// Obiettivo mensile profitto netto (da spostare in Settings in futuro)
+const MONTHLY_GOAL = 4000;
+
+// Mappa key periodo → label tab
+const PERIODS = [
+  { key: '7d',    label: 'Ultimi 7gg' },
+  { key: 'month', label: 'Questo mese' },
+  { key: 'q',     label: 'Trimestre' },
+  { key: 'ytd',   label: 'Anno' },
+];
+
+// Formatta range "01 mag — 20 mag 2026"
+function fmtRange(from, to) {
+  if (!from || !to) return '';
+  const m = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  const a = new Date(from), b = new Date(to);
+  return `${a.getDate()} ${m[a.getMonth()]} — ${b.getDate()} ${m[b.getMonth()]} ${b.getFullYear()}`;
+}
+
+// Render delta % con freccia + colore
+function DeltaBadge({ value, suffix = 'vs periodo precedente' }) {
+  if (value === null || value === undefined) return <span className="badge badge-muted">— {suffix}</span>;
+  const up = value >= 0;
+  return <span className={`badge ${up ? 'badge-green' : 'badge-muted'}`}>{up ? '▲' : '▼'} {Math.abs(value).toFixed(1)}% {suffix}</span>;
+}
 
 export default function Dashboard() {
-  // Stato per periodo selezionato
+  const { products } = useData();
   const [period, setPeriod] = useState('month');
+  // Inizializza dallo store cache: se già presente → render istantaneo
+  const [overview, setOverview] = useState(() => dashCache.month?.overview ?? null);
+  const [channels, setChannels] = useState(() => dashCache.month?.channels ?? []);
+  const [transactions, setTransactions] = useState(() => dashCache.month?.transactions ?? []);
+  const [alertDismissed, setAlertDismissed] = useState(false);
 
-  // Dati mock per diversi periodi
-  const periodData = {
-    '7d': {
-      activity: [
-        { icon: '🔍', label: 'Ordini', value: '12' },
-        { icon: '♻️', label: 'Abbonamenti', value: '3' },
-        { icon: '👤', label: 'Clienti', value: '8' },
-      ],
-      financial: [
-        { label: 'Ricavi totali', value: '€ 1.240', change: '▲ +8%', color: 'blue' },
-        { label: 'Costo del venduto', value: '€ 420', change: '34% del ricavo', color: 'red' },
-        { label: 'Spese operative', value: '€ 140', change: '11% del ricavo', color: 'amber' },
-        { label: 'Margine', value: '54.8%', change: 'target 60%', color: 'green' },
-      ],
-      profit: '€ 680',
-      profitChange: '▲ +8%',
-      goalProgress: 17,
-      channels: [
-        { name: 'Facebook', revenue: 520, orders: 6, color: '#1877f2' },
-        { name: 'Google', revenue: 380, orders: 4, color: '#34a853' },
-        { name: 'Instagram', revenue: 150, orders: 1, color: '#e1306c' },
-        { name: 'Diretto', revenue: 190, orders: 1, color: '#818cf8' },
-      ],
-    },
-    'month': {
-      activity: [
-        { icon: '🔍', label: 'Ordini', value: '38' },
-        { icon: '♻️', label: 'Abbonamenti', value: '12' },
-        { icon: '👤', label: 'Clienti', value: '29' },
-      ],
-      financial: [
-        { label: 'Ricavi totali', value: '€ 5.860', change: '▲ +12%', color: 'blue' },
-        { label: 'Costo del venduto', value: '€ 1.940', change: '33% del ricavo', color: 'red' },
-        { label: 'Spese operative', value: '€ 680', change: '12% del ricavo', color: 'amber' },
-        { label: 'Margine', value: '55.3%', change: 'target 60%', color: 'green' },
-      ],
-      profit: '€ 3.240',
-      profitChange: '▲ +18%',
-      goalProgress: 81,
-      channels: [
-        { name: 'Facebook', revenue: 2340, orders: 18, color: '#1877f2' },
-        { name: 'Google', revenue: 1560, orders: 12, color: '#34a853' },
-        { name: 'Instagram', revenue: 890, orders: 5, color: '#e1306c' },
-        { name: 'Diretto', revenue: 1070, orders: 3, color: '#818cf8' },
-      ],
-    },
-    'q': {
-      activity: [
-        { icon: '🔍', label: 'Ordini', value: '112' },
-        { icon: '♻️', label: 'Abbonamenti', value: '35' },
-        { icon: '👤', label: 'Clienti', value: '87' },
-      ],
-      financial: [
-        { label: 'Ricavi totali', value: '€ 17.450', change: '▲ +15%', color: 'blue' },
-        { label: 'Costo del venduto', value: '€ 5.820', change: '33% del ricavo', color: 'red' },
-        { label: 'Spese operative', value: '€ 2.040', change: '12% del ricavo', color: 'amber' },
-        { label: 'Margine', value: '55.0%', change: 'target 60%', color: 'green' },
-      ],
-      profit: '€ 9.590',
-      profitChange: '▲ +22%',
-      goalProgress: 95,
-      channels: [
-        { name: 'Facebook', revenue: 6890, orders: 54, color: '#1877f2' },
-        { name: 'Google', revenue: 4680, orders: 36, color: '#34a853' },
-        { name: 'Instagram', revenue: 2670, orders: 15, color: '#e1306c' },
-        { name: 'Diretto', revenue: 3210, orders: 7, color: '#818cf8' },
-      ],
-    },
-    'ytd': {
-      activity: [
-        { icon: '🔍', label: 'Ordini', value: '445' },
-        { icon: '♻️', label: 'Abbonamenti', value: '142' },
-        { icon: '👤', label: 'Clienti', value: '312' },
-      ],
-      financial: [
-        { label: 'Ricavi totali', value: '€ 68.900', change: '▲ +28%', color: 'blue' },
-        { label: 'Costo del venduto', value: '€ 22.950', change: '33% del ricavo', color: 'red' },
-        { label: 'Spese operative', value: '€ 8.260', change: '12% del ricavo', color: 'amber' },
-        { label: 'Margine', value: '54.8%', change: 'target 60%', color: 'green' },
-      ],
-      profit: '€ 37.690',
-      profitChange: '▲ +35%',
-      goalProgress: 94,
-      channels: [
-        { name: 'Facebook', revenue: 27560, orders: 215, color: '#1877f2' },
-        { name: 'Google', revenue: 18720, orders: 144, color: '#34a853' },
-        { name: 'Instagram', revenue: 10680, orders: 60, color: '#e1306c' },
-        { name: 'Diretto', revenue: 11940, orders: 26, color: '#818cf8' },
-      ],
-    },
-  };
+  // Stale-While-Revalidate: se ho dati in cache li mostro subito,
+  // poi rivalido sempre in background. Niente "schermo vuoto" tra periodi.
+  useEffect(() => {
+    let cancelled = false;
 
-  const data = periodData[period];
+    // Cache hit → render istantaneo. Cache miss → mantieni i dati precedenti visibili.
+    const cached = dashCache[period];
+    if (cached) {
+      setOverview(cached.overview);
+      setChannels(cached.channels);
+      setTransactions(cached.transactions);
+    }
 
-  // Dati mock per transazioni (statici per ora)
-  const transactions = [
-    { icon: '🔍', name: 'Diagnosi Full — Ferrari M.', meta: 'Oggi, 11:24 · Facebook Ads', amount: '+€ 150', type: 'ENTRATA', color: 'green' },
-    { icon: '📦', name: 'Acquisto OBD Cables ×5', meta: 'Ieri, 09:00 · Fornitore', amount: '−€ 87', type: 'USCITA', color: 'red' },
-    { icon: '⭐', name: 'Abbonamento Pro — Rossi G.', meta: '16 mag · Diretto', amount: '+€ 200', type: 'ENTRATA', color: 'green' },
-    { icon: '🔍', name: 'Diagnosi Base — Bianchi F.', meta: '15 mag · Google Ads', amount: '+€ 70', type: 'ENTRATA', color: 'green' },
-  ];
+    // Revalidate (sempre, anche con cache hit)
+    Promise.all([
+      api.analytics.overview(period),
+      api.analytics.channels(period),
+      api.analytics.recentTransactions(6),
+    ])
+      .then(([ov, ch, tx]) => {
+        if (cancelled) return;
+        dashCache[period] = { overview: ov, channels: ch, transactions: tx };
+        setOverview(ov);
+        setChannels(ch);
+        setTransactions(tx);
+      })
+      .catch(e => console.error('Dashboard load error:', e));
+
+    return () => { cancelled = true; };
+  }, [period]);
+
+  // Alert scorte: prodotti con stock <= lowStock (calcolato lato client)
+  const lowStockProducts = useMemo(
+    () => products.filter(p => p.stock !== null && p.stock !== undefined && p.lowStock && p.stock <= p.lowStock),
+    [products]
+  );
+
+  // Goal progress: solo per "month" ha senso (4000€/mese)
+  const goalProgress = overview && period === 'month'
+    ? Math.min(100, Math.round((overview.financial.netProfit / MONTHLY_GOAL) * 100))
+    : null;
 
   return (
     <>
-      {/* Period selector tabs — outside .page for full-width */}
+      {/* Period selector tabs */}
       <div className="subnav">
         <div className="subnav-tabs">
-          {[
-            { key: '7d', label: 'Ultimi 7gg' },
-            { key: 'month', label: 'Questo mese' },
-            { key: 'q', label: 'Trimestre' },
-            { key: 'ytd', label: 'Anno' },
-          ].map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
-              className={`tab ${period === p.key ? 'active' : ''}`}
-            >
+          {PERIODS.map(p => (
+            <button key={p.key} onClick={() => setPeriod(p.key)} className={`tab ${period === p.key ? 'active' : ''}`}>
               {p.label}
             </button>
           ))}
         </div>
         <div className="subnav-divider"></div>
-        <span className="subnav-date">01 mag — 18 mag 2025</span>
+        <span className="subnav-date">{overview ? fmtRange(overview.period.from, overview.period.to) : '…'}</span>
       </div>
 
       <main className="page">
-        {/* Alert banner */}
-        <div className="alert">
-          <div className="alert-dot"></div>
-          <div className="alert-body">
-            <div className="alert-title">Scorte in esaurimento</div>
-            <div className="alert-msg">OBD Scanner Pro: <strong>2 unità</strong> rimaste — soglia minima raggiunta.</div>
-          </div>
-          <button className="alert-close" onClick={() => {}}>✕</button>
-        </div>
-
-        {/* Sezione Attività */}
-        <div className="section-head">
-          <span className="section-title">Attività</span>
-        </div>
-        <div className="stat-strip">
-          {data.activity.map((stat) => (
-            <div key={stat.label} className="stat-card">
-              <span className="stat-icon">{stat.icon}</span>
-              <div className="stat-val">{stat.value}</div>
-              <div className="stat-lbl">{stat.label}</div>
+        {/* Alert scorte in esaurimento (calcolato lato client) */}
+        {!alertDismissed && lowStockProducts.length > 0 && (
+          <div className="alert">
+            <div className="alert-dot"></div>
+            <div className="alert-body">
+              <div className="alert-title">Scorte in esaurimento</div>
+              <div className="alert-msg">
+                {lowStockProducts.slice(0, 2).map((p, i) => (
+                  <span key={p.id}>{i > 0 && ' · '}<strong>{p.name}</strong>: {p.stock} unità</span>
+                ))}
+                {lowStockProducts.length > 2 && ` e altri ${lowStockProducts.length - 2}`}
+              </div>
             </div>
-          ))}
+            <button className="alert-close" onClick={() => setAlertDismissed(true)}>✕</button>
+          </div>
+        )}
+
+        {/* Attività */}
+        <div className="section-head"><span className="section-title">Attività</span></div>
+        <div className="stat-strip">
+          <div className="stat-card"><span className="stat-icon">🔍</span><div className="stat-val">{overview?.activity.orders ?? '—'}</div><div className="stat-lbl">Ordini</div></div>
+          <div className="stat-card"><span className="stat-icon">♻️</span><div className="stat-val">{overview?.activity.subscriptions ?? '—'}</div><div className="stat-lbl">Abbonamenti</div></div>
+          <div className="stat-card"><span className="stat-icon">👤</span><div className="stat-val">{overview?.activity.newCustomers ?? '—'}</div><div className="stat-lbl">Nuovi clienti</div></div>
         </div>
 
-        {/* Sezione Finanziari */}
+        {/* Finanziari */}
         <div className="section-head" style={{ marginTop: '24px' }}>
           <span className="section-title">Finanziari</span>
           <span className="section-action">Esporta →</span>
         </div>
         <div className="kpi-grid">
-          {/* Accent card — Profitto netto */}
+          {/* Card grande: Profitto netto + goal mensile */}
           <div className="kpi-card accent-card span2">
             <div className="kpi-label" style={{ color: 'rgba(165,180,252,0.7)' }}>
               <span className="dot" style={{ background: '#818cf8', opacity: 1, boxShadow: '0 0 5px #818cf8' }}></span>
               Profitto netto
             </div>
-            <div className="kpi-value xl">{data.profit}</div>
-            <span className="badge badge-green">{data.profitChange} vs mese scorso</span>
-            <div className="progress-group">
-              <div className="progress-row">
-                <span className="progress-label" style={{ color: 'rgba(165,180,252,0.6)' }}>Obiettivo mensile — € 4.000</span>
-                <span className="progress-pct" style={{ color: '#fff' }}>{data.goalProgress}%</span>
+            <div className="kpi-value xl">{overview ? fmt(overview.financial.netProfit) : '—'}</div>
+            <DeltaBadge value={overview?.compare.profitDelta} />
+            {period === 'month' && (
+              <div className="progress-group">
+                <div className="progress-row">
+                  <span className="progress-label" style={{ color: 'rgba(165,180,252,0.6)' }}>Obiettivo mensile — {fmt(MONTHLY_GOAL)}</span>
+                  <span className="progress-pct" style={{ color: '#fff' }}>{goalProgress ?? 0}%</span>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill fill-indigo" style={{ width: `${goalProgress ?? 0}%` }}></div>
+                </div>
               </div>
-              <div className="progress-track">
-                <div className="progress-fill fill-indigo" style={{ width: `${data.goalProgress}%` }}></div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* KPI cards normali */}
-          {data.financial.map((kpi) => (
-            <div key={kpi.label} className="kpi-card">
-              <div className="kpi-label">
-                <span className="dot" style={{ background: `var(--${kpi.color})`, opacity: 0.8 }}></span>
-                {kpi.label}
-              </div>
-              <div className="kpi-value">{kpi.value}</div>
-              <span className={`badge ${kpi.color === 'green' ? 'badge-green' : kpi.color === 'blue' ? 'badge-blue' : 'badge-muted'}`}>
-                {kpi.change}
-              </span>
-            </div>
-          ))}
+          {/* Ricavi totali */}
+          <div className="kpi-card">
+            <div className="kpi-label"><span className="dot" style={{ background: 'var(--blue)', opacity: 0.8 }}></span>Ricavi totali</div>
+            <div className="kpi-value">{overview ? fmt(overview.financial.totalRevenue) : '—'}</div>
+            <DeltaBadge value={overview?.compare.revenueDelta} />
+          </div>
+
+          {/* Costo del venduto */}
+          <div className="kpi-card">
+            <div className="kpi-label"><span className="dot" style={{ background: 'var(--red)', opacity: 0.8 }}></span>Costo del venduto</div>
+            <div className="kpi-value">{overview ? fmt(overview.financial.totalCogs) : '—'}</div>
+            <span className="badge badge-muted">
+              {overview && overview.financial.totalRevenue > 0
+                ? `${((overview.financial.totalCogs / overview.financial.totalRevenue) * 100).toFixed(0)}% del ricavo`
+                : '—'}
+            </span>
+          </div>
+
+          {/* Spese operative */}
+          <div className="kpi-card">
+            <div className="kpi-label"><span className="dot" style={{ background: 'var(--amber)', opacity: 0.8 }}></span>Spese operative</div>
+            <div className="kpi-value">{overview ? fmt(overview.financial.totalExpenses) : '—'}</div>
+            <span className="badge badge-muted">
+              {overview && overview.financial.totalRevenue > 0
+                ? `${((overview.financial.totalExpenses / overview.financial.totalRevenue) * 100).toFixed(0)}% del ricavo`
+                : '—'}
+            </span>
+          </div>
+
+          {/* Margine */}
+          <div className="kpi-card">
+            <div className="kpi-label"><span className="dot" style={{ background: 'var(--green)', opacity: 0.8 }}></span>Margine</div>
+            <div className="kpi-value">{overview ? `${overview.financial.margin.toFixed(1)}%` : '—'}</div>
+            <span className="badge badge-muted">target 60%</span>
+          </div>
         </div>
 
-        {/* Sezione Canali */}
-        <div className="section-head">
-          <span className="section-title">Per canale</span>
-        </div>
+        {/* Per canale */}
+        <div className="section-head"><span className="section-title">Per canale</span></div>
         <div className="table-card">
-          {data.channels.map((channel) => {
-            const maxRevenue = Math.max(...data.channels.map(c => c.revenue));
-            const percentage = (channel.revenue / maxRevenue * 100).toFixed(0);
+          {overview && channels.length === 0 && (
+            <div style={{ padding:'24px', textAlign:'center', color:'var(--text3)', fontSize:'13px' }}>Nessun dato nel periodo selezionato</div>
+          )}
+          {channels.map(ch => {
+            const maxRev = Math.max(...channels.map(c => c.revenue), 1);
+            const pct = (ch.revenue / maxRev * 100).toFixed(0);
             return (
-              <div key={channel.name} className="service-row">
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: channel.color, margin: '0 auto' }}></div>
+              <div key={ch.name} className="service-row">
+                <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:ch.color, margin:'0 auto' }}></div>
                 <div className="service-info">
-                  <div className="s-name">{channel.name}</div>
-                  <div className="s-count">{channel.orders} ordini</div>
+                  <div className="s-name">{ch.name}</div>
+                  <div className="s-count">{ch.orders} ordini</div>
                 </div>
                 <div>
                   <div className="service-bar-track">
-                    <div 
-                      className="service-bar-fill"
-                      style={{ 
-                        width: `${percentage}%`,
-                        background: `linear-gradient(90deg, ${channel.color}aa, ${channel.color})`
-                      }}
-                    ></div>
+                    <div className="service-bar-fill" style={{ width:`${pct}%`, background:`linear-gradient(90deg, ${ch.color}aa, ${ch.color})` }}></div>
                   </div>
                 </div>
-                <div className="service-revenue">€ {channel.revenue.toLocaleString()}</div>
+                <div className="service-revenue">{fmt(ch.revenue)}</div>
               </div>
             );
           })}
         </div>
 
-        {/* Sezione Ultime transazioni */}
+        {/* Ultime transazioni (orders + expenses) */}
         <div className="section-head">
           <span className="section-title">Ultime transazioni</span>
           <span className="section-action">Tutte →</span>
         </div>
         <div className="table-card">
-          {transactions.map((tx, i) => (
-            <div key={i} className="tx-row">
-              <div className="tx-icon" style={{
-                background: tx.type === 'ENTRATA' ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)'
-              }}>
-                {tx.icon}
-              </div>
-              <div className="tx-info">
-                <div className="tx-name">{tx.name}</div>
-                <div className="tx-meta">{tx.meta}</div>
-              </div>
-              <div className="tx-right">
-                <div className={`tx-amount ${tx.type === 'ENTRATA' ? 'pos' : 'neg'}`}>
-                  {tx.amount}
+          {overview && transactions.length === 0 && (
+            <div style={{ padding:'24px', textAlign:'center', color:'var(--text3)', fontSize:'13px' }}>Nessuna transazione</div>
+          )}
+          {transactions.map(tx => {
+            const isIncome = tx.kind === 'income';
+            return (
+              <div key={tx.id} className="tx-row">
+                <div className="tx-icon" style={{ background: isIncome ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)' }}>
+                  {isIncome ? '🔍' : '📦'}
                 </div>
-                <div className="tx-tag">{tx.type}</div>
+                <div className="tx-info">
+                  <div className="tx-name">{tx.name}</div>
+                  <div className="tx-meta">{new Date(tx.date).toLocaleDateString('it-IT', { day:'2-digit', month:'short' })} · {tx.meta}</div>
+                </div>
+                <div className="tx-right">
+                  <div className={`tx-amount ${isIncome ? 'pos' : 'neg'}`}>
+                    {isIncome ? '+' : '−'}{fmt(Math.abs(tx.amount))}
+                  </div>
+                  <div className="tx-tag">{isIncome ? 'ENTRATA' : 'USCITA'}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </>

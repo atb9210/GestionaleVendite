@@ -1,6 +1,7 @@
 // Context condiviso per tutti i dati dell'app — CRUD via API
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { api } from '../lib/api';
+import { dashCache } from '../lib/dashboardCache';
 
 // ─── CONTEXT ───
 const DataContext = createContext(null);
@@ -138,6 +139,21 @@ export function DataProvider({ children }) {
   }, [showToast]);
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  // Prefetch dati Dashboard (periodo 'month') in background, dopo il caricamento iniziale.
+  // Non blocca la LoadingGate. Riempie dashCache così la Dashboard renderizza istantaneamente.
+  useEffect(() => {
+    if (loading) return;
+    Promise.all([
+      api.analytics.overview('month'),
+      api.analytics.channels('month'),
+      api.analytics.recentTransactions(6),
+    ])
+      .then(([overview, channels, transactions]) => {
+        dashCache.month = { overview, channels, transactions };
+      })
+      .catch(() => {}); // silenzioso: la Dashboard farà comunque il fetch al mount
+  }, [loading]);
 
   // ─── Refresh singole entità ───
   const refreshChannels       = useCallback(async () => { const d = await api.channels.list(); setChannels(d.map(enrichChannel)); }, []);

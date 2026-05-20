@@ -33,9 +33,23 @@ File di configurazione base
 - [x] Step 7: Integrazione end-to-end (POST/PUT/DELETE persistono nel DB)
 - [x] Step 8: UI reattiva con Optimistic Updates
 - [x] Step 8.5: Refactor backend → struttura `modules/` mirror pagine frontend
-- [ ] **Step 9: Dashboard con analytics reali** ← prossimo
+- [ ] **Step 9: Dashboard con analytics reali** ← in corso
 - [ ] Step 10: Reports page con charts
 - [ ] Step 11: Settings completo (goals, canali, categorie)
+
+## Step 9 — Dashboard reale (in corso)
+
+**A. Backend (`modules/dashboard/analytics.routes.ts`)**:
+- Helper `periodToRange('7d'|'month'|'q'|'ytd')` con periodo precedente per delta %
+- `GET /overview?period=` → `{ period, activity, financial, compare }`
+- `GET /channels?period=` → filtrato
+- `GET /recent-transactions?limit=6` → mix orders + expenses ordinati per data
+
+**B. Frontend (`pages/Dashboard.jsx`)**:
+- Rimuovo mock `periodData`
+- `useEffect([period])` fetcha overview + channels + transactions
+- Alert low-stock derivato da `useData().products`
+- Goal mensile hardcoded 4000 € (da migrare in Settings)
 
 ## Step 8.5 — Backend modulare (fatto)
 
