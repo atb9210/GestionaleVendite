@@ -18,6 +18,7 @@ import expensesRouter       from './modules/expenses/routes';
 // Communications (gestita dalla pagina Communications)
 import conversationsRouter  from './modules/communications/conversations.routes';
 import msgTemplatesRouter   from './modules/communications/msgTemplates.routes';
+import wasenderRouter       from './modules/communications/wasender.routes';
 
 // Settings (4 entità di configurazione)
 import channelsRouter           from './modules/settings/channels.routes';
@@ -33,6 +34,10 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+
+// Wasender webhook needs raw body for signature verification — must be before express.json()
+app.use('/api/wasender', wasenderRouter);
+
 app.use(express.json());
 
 // Health check
