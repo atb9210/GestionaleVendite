@@ -12,7 +12,7 @@ WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci
 COPY server/ .
-RUN npm run build && npx prisma generate
+RUN npx prisma generate && npm run build
 
 # ── Stage 3: Runtime ─────────────────────────────────────────────
 FROM node:22-alpine
@@ -23,4 +23,4 @@ COPY --from=backend /app/prisma ./prisma
 COPY --from=backend /app/node_modules ./node_modules
 COPY --from=frontend /app/dist ./public
 COPY server/package*.json ./
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["node", "dist/index.js"]
