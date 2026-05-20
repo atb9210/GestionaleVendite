@@ -149,50 +149,138 @@ export function DataProvider({ children }) {
   const refreshExpenses       = useCallback(async () => { const d = await api.expenses.list(); setExpenses(d.map(normalizeExpense)); }, []);
   const refreshConversations  = useCallback(async () => { const d = await api.conversations.list(); setConversations(d.map(normalizeConversation)); }, []);
 
-  // ─── CRUD helpers (single round-trip, use response directly) ───
-  const createChannel = useCallback(async (data) => { const r = await api.channels.create(data); setChannels(prev => [...prev, enrichChannel(r)]); }, []);
-  const updateChannel = useCallback(async (id, data) => { const r = await api.channels.update(id, data); setChannels(prev => prev.map(c => c.id === id ? enrichChannel(r) : c)); }, []);
-  const deleteChannel = useCallback(async (id) => { await api.channels.delete(id); setChannels(prev => prev.filter(c => c.id !== id)); }, []);
+  // ─── CRUD helpers (Optimistic UI) ───
+  // Pattern: aggiorno lo state subito con dati ottimistici (id temporaneo),
+  // poi sincronizzo con il backend in background. In caso di errore: rollback + toast.
+  const tempId = () => '_temp_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
 
-  const createProduct = useCallback(async (data) => { const r = await api.products.create(data); setProducts(prev => [...prev, normalizeProduct(r)]); }, []);
-  const updateProduct = useCallback(async (id, data) => { const r = await api.products.update(id, data); setProducts(prev => prev.map(p => p.id === id ? normalizeProduct(r) : p)); }, []);
-  const deleteProduct = useCallback(async (id) => { await api.products.delete(id); setProducts(prev => prev.filter(p => p.id !== id)); }, []);
+  // Helper generico: applica update ottimistico + sync in background
+  const optimisticCreate = (setState, normalize, apiCall, optimisticItem, errorLabel) => {
+    const tId = optimisticItem.id;
+    setState(prev => [optimisticItem, ...prev]);
+    apiCall()
+      .then(real => setState(prev => prev.map(x => x.id === tId ? normalize(real) : x)))
+      .catch(e => {
+        setState(prev => prev.filter(x => x.id !== tId));
+        showToast(e.message || errorLabel, 'error');
+      });
+  };
+  const optimisticUpdate = (setState, normalize, apiCall, id, patch, errorLabel) => {
+    let snapshot;
+    setState(cur => { snapshot = cur; return cur.map(x => x.id === id ? normalize({ ...x, ...patch }) : x); });
+    apiCall()
+      .then(real => setState(prev => prev.map(x => x.id === id ? normalize(real) : x)))
+      .catch(e => { setState(snapshot); showToast(e.message || errorLabel, 'error'); });
+  };
+  const optimisticDelete = (setState, apiCall, id, errorLabel) => {
+    let snapshot;
+    setState(cur => { snapshot = cur; return cur.filter(x => x.id !== id); });
+    apiCall()
+      .catch(e => { setState(snapshot); showToast(e.message || errorLabel, 'error'); });
+  };
 
-  const createCustomer = useCallback(async (data) => { const r = await api.customers.create(data); setCustomers(prev => [...prev, normalizeCustomer(r)]); }, []);
-  const updateCustomer = useCallback(async (id, data) => { const r = await api.customers.update(id, data); setCustomers(prev => prev.map(c => c.id === id ? normalizeCustomer(r) : c)); }, []);
-  const deleteCustomer = useCallback(async (id) => { await api.customers.delete(id); setCustomers(prev => prev.filter(c => c.id !== id)); }, []);
+  // ─── Channels ───
+  const createChannel = useCallback((data) => {
+    const opt = enrichChannel({ ...data, id: tempId() });
+    optimisticCreate(setChannels, enrichChannel, () => api.channels.create(data), opt, 'Errore creazione canale');
+  }, [showToast]);
+  const updateChannel = useCallback((id, data) => optimisticUpdate(setChannels, enrichChannel, () => api.channels.update(id, data), id, data, 'Errore aggiornamento canale'), [showToast]);
+  const deleteChannel = useCallback((id) => optimisticDelete(setChannels, () => api.channels.delete(id), id, 'Errore eliminazione canale'), [showToast]);
 
-  const createOrder = useCallback(async (data) => { const r = await api.orders.create(data); setOrders(prev => [normalizeOrder(r), ...prev]); return r; }, []);
-  const updateOrder = useCallback(async (id, data) => { const r = await api.orders.update(id, data); setOrders(prev => prev.map(o => o.id === id ? normalizeOrder(r) : o)); }, []);
-  const deleteOrder = useCallback(async (id) => { await api.orders.delete(id); setOrders(prev => prev.filter(o => o.id !== id)); }, []);
+  // ─── Products ───
+  const createProduct = useCallback((data) => {
+    const opt = normalizeProduct({ ...data, id: tempId() });
+    optimisticCreate(setProducts, normalizeProduct, () => api.products.create(data), opt, 'Errore creazione prodotto');
+  }, [showToast]);
+  const updateProduct = useCallback((id, data) => optimisticUpdate(setProducts, normalizeProduct, () => api.products.update(id, data), id, data, 'Errore aggiornamento prodotto'), [showToast]);
+  const deleteProduct = useCallback((id) => optimisticDelete(setProducts, () => api.products.delete(id), id, 'Errore eliminazione prodotto'), [showToast]);
 
-  const createSubscription = useCallback(async (data) => { const r = await api.subscriptions.create(data); setSubscriptions(prev => [...prev, normalizeSubscription(r)]); }, []);
-  const updateSubscription = useCallback(async (id, data) => { const r = await api.subscriptions.update(id, data); setSubscriptions(prev => prev.map(s => s.id === id ? normalizeSubscription(r) : s)); }, []);
-  const deleteSubscription = useCallback(async (id) => { await api.subscriptions.delete(id); setSubscriptions(prev => prev.filter(s => s.id !== id)); }, []);
+  // ─── Customers ───
+  const createCustomer = useCallback((data) => {
+    const opt = normalizeCustomer({ ...data, id: tempId(), ordersCount: 0, ltv: 0, lastOrderDate: null });
+    optimisticCreate(setCustomers, normalizeCustomer, () => api.customers.create(data), opt, 'Errore creazione cliente');
+  }, [showToast]);
+  const updateCustomer = useCallback((id, data) => optimisticUpdate(setCustomers, normalizeCustomer, () => api.customers.update(id, data), id, data, 'Errore aggiornamento cliente'), [showToast]);
+  const deleteCustomer = useCallback((id) => optimisticDelete(setCustomers, () => api.customers.delete(id), id, 'Errore eliminazione cliente'), [showToast]);
 
-  const createPurchase = useCallback(async (data) => { const r = await api.purchases.create(data); setPurchases(prev => [normalizePurchase(r), ...prev]); }, []);
-  const updatePurchase = useCallback(async (id, data) => { const r = await api.purchases.update(id, data); setPurchases(prev => prev.map(p => p.id === id ? normalizePurchase(r) : p)); }, []);
-  const deletePurchase = useCallback(async (id) => { await api.purchases.delete(id); setPurchases(prev => prev.filter(p => p.id !== id)); }, []);
+  // ─── Orders ───
+  const createOrder = useCallback((data) => {
+    const opt = normalizeOrder({ ...data, id: tempId(), orderNumber: data.orderNumber || '#…' });
+    optimisticCreate(setOrders, normalizeOrder, () => api.orders.create(data), opt, 'Errore creazione ordine');
+  }, [showToast]);
+  const updateOrder = useCallback((id, data) => optimisticUpdate(setOrders, normalizeOrder, () => api.orders.update(id, data), id, data, 'Errore aggiornamento ordine'), [showToast]);
+  const deleteOrder = useCallback((id) => optimisticDelete(setOrders, () => api.orders.delete(id), id, 'Errore eliminazione ordine'), [showToast]);
 
-  const createExpense = useCallback(async (data) => { const r = await api.expenses.create(data); setExpenses(prev => [normalizeExpense(r), ...prev]); }, []);
-  const updateExpense = useCallback(async (id, data) => { const r = await api.expenses.update(id, data); setExpenses(prev => prev.map(e => e.id === id ? normalizeExpense(r) : e)); }, []);
-  const deleteExpense = useCallback(async (id) => { await api.expenses.delete(id); setExpenses(prev => prev.filter(e => e.id !== id)); }, []);
+  // ─── Subscriptions ───
+  const createSubscription = useCallback((data) => {
+    const opt = normalizeSubscription({ ...data, id: tempId() });
+    optimisticCreate(setSubscriptions, normalizeSubscription, () => api.subscriptions.create(data), opt, 'Errore creazione abbonamento');
+  }, [showToast]);
+  const updateSubscription = useCallback((id, data) => optimisticUpdate(setSubscriptions, normalizeSubscription, () => api.subscriptions.update(id, data), id, data, 'Errore aggiornamento abbonamento'), [showToast]);
+  const deleteSubscription = useCallback((id) => optimisticDelete(setSubscriptions, () => api.subscriptions.delete(id), id, 'Errore eliminazione abbonamento'), [showToast]);
 
-  const createConversation = useCallback(async (data) => { const r = await api.conversations.create(data); setConversations(prev => [normalizeConversation(r), ...prev]); }, []);
-  const updateConversation = useCallback(async (id, data) => { const r = await api.conversations.update(id, data); setConversations(prev => prev.map(c => c.id === id ? normalizeConversation(r) : c)); }, []);
-  const deleteConversation = useCallback(async (id) => { await api.conversations.delete(id); setConversations(prev => prev.filter(c => c.id !== id)); }, []);
-  const sendMessage = useCallback(async (convId, data) => { await api.conversations.addMessage(convId, data); await refreshConversations(); }, [refreshConversations]);
+  // ─── Purchases ───
+  const createPurchase = useCallback((data) => {
+    // Per i Purchase, il normalizer cerca supplier.name; lo iniettiamo ottimisticamente
+    const sup = suppliers.find(s => s.id === data.supplierId);
+    const opt = normalizePurchase({ ...data, id: tempId(), supplier: sup ? { name: sup.name } : null });
+    optimisticCreate(setPurchases, normalizePurchase, () => api.purchases.create(data), opt, 'Errore creazione acquisto');
+  }, [showToast, suppliers]);
+  const updatePurchase = useCallback((id, data) => optimisticUpdate(setPurchases, normalizePurchase, () => api.purchases.update(id, data), id, data, 'Errore aggiornamento acquisto'), [showToast]);
+  const deletePurchase = useCallback((id) => optimisticDelete(setPurchases, () => api.purchases.delete(id), id, 'Errore eliminazione acquisto'), [showToast]);
 
-  const createMsgTemplate = useCallback(async (data) => { const r = await api.msgTemplates.create(data); setMsgTemplates(prev => [...prev, r]); }, []);
-  const updateMsgTemplate = useCallback(async (id, data) => { const r = await api.msgTemplates.update(id, data); setMsgTemplates(prev => prev.map(t => t.id === id ? r : t)); }, []);
-  const deleteMsgTemplate = useCallback(async (id) => { await api.msgTemplates.delete(id); setMsgTemplates(prev => prev.filter(t => t.id !== id)); }, []);
+  // ─── Expenses ───
+  const createExpense = useCallback((data) => {
+    const opt = normalizeExpense({ ...data, id: tempId() });
+    optimisticCreate(setExpenses, normalizeExpense, () => api.expenses.create(data), opt, 'Errore creazione spesa');
+  }, [showToast]);
+  const updateExpense = useCallback((id, data) => optimisticUpdate(setExpenses, normalizeExpense, () => api.expenses.update(id, data), id, data, 'Errore aggiornamento spesa'), [showToast]);
+  const deleteExpense = useCallback((id) => optimisticDelete(setExpenses, () => api.expenses.delete(id), id, 'Errore eliminazione spesa'), [showToast]);
 
-  const createSupplier = useCallback(async (data) => { const r = await api.suppliers.create(data); setSuppliers(prev => [...prev, r]); }, []);
-  const updateSupplier = useCallback(async (id, data) => { const r = await api.suppliers.update(id, data); setSuppliers(prev => prev.map(s => s.id === id ? r : s)); }, []);
-  const deleteSupplier = useCallback(async (id) => { await api.suppliers.delete(id); setSuppliers(prev => prev.filter(s => s.id !== id)); }, []);
+  // ─── Conversations ───
+  const createConversation = useCallback((data) => {
+    const opt = normalizeConversation({ ...data, id: tempId(), messages: [] });
+    optimisticCreate(setConversations, normalizeConversation, () => api.conversations.create(data), opt, 'Errore creazione conversazione');
+  }, [showToast]);
+  const updateConversation = useCallback((id, data) => optimisticUpdate(setConversations, normalizeConversation, () => api.conversations.update(id, data), id, data, 'Errore aggiornamento conversazione'), [showToast]);
+  const deleteConversation = useCallback((id) => optimisticDelete(setConversations, () => api.conversations.delete(id), id, 'Errore eliminazione conversazione'), [showToast]);
+  // Send message: optimistic append nel singolo thread, poi refetch della conversazione
+  const sendMessage = useCallback((convId, data) => {
+    const tMsg = { id: tempId(), dir: (data.direction || 'out').toLowerCase(), text: data.text, ts: fmtDate(new Date().toISOString()), auto: !!data.auto };
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [...(c.messages || []), tMsg] } : c));
+    api.conversations.addMessage(convId, data)
+      .then(() => refreshConversations())
+      .catch(e => {
+        setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: c.messages.filter(m => m.id !== tMsg.id) } : c));
+        showToast(e.message || 'Errore invio messaggio', 'error');
+      });
+  }, [refreshConversations, showToast]);
 
-  const createProductType = useCallback(async (data) => { const r = await api.productTypes.create(data); setProductTypes(prev => [...prev, r]); }, []);
-  const createExpenseCategory = useCallback(async (data) => { const r = await api.expenseCategories.create(data); setExpenseCategories(prev => [...prev, r]); }, []);
+  // ─── Message Templates (no normalize) ───
+  const createMsgTemplate = useCallback((data) => {
+    const opt = { ...data, id: tempId() };
+    optimisticCreate(setMsgTemplates, x => x, () => api.msgTemplates.create(data), opt, 'Errore creazione template');
+  }, [showToast]);
+  const updateMsgTemplate = useCallback((id, data) => optimisticUpdate(setMsgTemplates, x => x, () => api.msgTemplates.update(id, data), id, data, 'Errore aggiornamento template'), [showToast]);
+  const deleteMsgTemplate = useCallback((id) => optimisticDelete(setMsgTemplates, () => api.msgTemplates.delete(id), id, 'Errore eliminazione template'), [showToast]);
+
+  // ─── Suppliers (no normalize) ───
+  const createSupplier = useCallback((data) => {
+    const opt = { ...data, id: tempId() };
+    optimisticCreate(setSuppliers, x => x, () => api.suppliers.create(data), opt, 'Errore creazione fornitore');
+  }, [showToast]);
+  const updateSupplier = useCallback((id, data) => optimisticUpdate(setSuppliers, x => x, () => api.suppliers.update(id, data), id, data, 'Errore aggiornamento fornitore'), [showToast]);
+  const deleteSupplier = useCallback((id) => optimisticDelete(setSuppliers, () => api.suppliers.delete(id), id, 'Errore eliminazione fornitore'), [showToast]);
+
+  // ─── Product Types & Expense Categories (no normalize) ───
+  const createProductType = useCallback((data) => {
+    const opt = { ...data, id: tempId() };
+    optimisticCreate(setProductTypes, x => x, () => api.productTypes.create(data), opt, 'Errore creazione tipo prodotto');
+  }, [showToast]);
+  const createExpenseCategory = useCallback((data) => {
+    const opt = { ...data, id: tempId() };
+    optimisticCreate(setExpenseCategories, x => x, () => api.expenseCategories.create(data), opt, 'Errore creazione categoria');
+  }, [showToast]);
 
   // ─── Lookup helpers ───
   const getChannel = useCallback((id) => channels.find(c => c.id === id), [channels]);
