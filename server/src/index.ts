@@ -57,7 +57,7 @@ app.use('/api/v1/analytics', analyticsRouter);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.join(__dirname, '../public');
+  const clientDist = path.join(__dirname, '../../public');
   app.use(express.static(clientDist));
   app.get('/{*path}', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
