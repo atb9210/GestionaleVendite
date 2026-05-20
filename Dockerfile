@@ -23,4 +23,4 @@ COPY --from=backend /app/prisma ./prisma
 COPY --from=backend /app/node_modules ./node_modules
 COPY --from=frontend /app/dist ./public
 COPY server/package*.json ./
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]
