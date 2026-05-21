@@ -12,7 +12,7 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation } = useData();
+  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, whatsappStatus } = useData();
   const [activeId, setActiveId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -147,6 +147,12 @@ export default function Communications() {
         <div className="comm-sidebar">
           <div className="comm-sidebar-header">
             <h2 className="comm-sidebar-title">💬 Chat</h2>
+            <div className={`comm-wa-status comm-wa-status--${whatsappStatus}`}>
+              <span className="comm-wa-dot" />
+              <span className="comm-wa-label">
+                {{ connected: 'Online', disconnected: 'Offline', need_scan: 'Scansiona QR' }[whatsappStatus] || ''}
+              </span>
+            </div>
             <button className="btn-primary btn-sm" onClick={() => setShowNewContact(true)}>+</button>
           </div>
 

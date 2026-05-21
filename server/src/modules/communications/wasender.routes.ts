@@ -105,6 +105,20 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
       if (msg && !isDuplicate(msg.key.id)) await saveIncomingMessage(msg);
     }
 
+    // Stato connessione sessione WhatsApp
+    if (event.event === 'session.status') {
+      const data = event.data as { status: string };
+      broadcastSSE('session-status', { status: data?.status || 'unknown' });
+    }
+
+    // Conferma/errore invio messaggio
+    if (event.event === 'message.sent') {
+      const data = event.data as { success: boolean; error?: string };
+      if (data?.success === false) {
+        broadcastSSE('message-failed', { error: data.error || 'Invio fallito' });
+      }
+    }
+
     res.sendStatus(200);
   } catch (err) {
     console.error('[wasender] webhook error:', err);

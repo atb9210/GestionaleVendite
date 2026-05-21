@@ -94,6 +94,7 @@ export function DataProvider({ children }) {
   const [conversations, setConversations] = useState([]);
   const [msgTemplates, setMsgTemplates]   = useState([]);
   const [loading, setLoading]             = useState(true);
+  const [whatsappStatus, setWhatsappStatus] = useState('unknown');
   const [toast, setToast]                 = useState({ show: false, message: '', type: 'success' });
 
   const showToast = useCallback((message, type = 'success') => {
@@ -169,8 +170,16 @@ export function DataProvider({ children }) {
   useEffect(() => {
     const es = new EventSource('/api/events');
     es.addEventListener('new-message', () => refreshConversations());
+    es.addEventListener('session-status', (e) => {
+      const { status } = JSON.parse(e.data);
+      setWhatsappStatus(status);
+    });
+    es.addEventListener('message-failed', (e) => {
+      const { error } = JSON.parse(e.data);
+      showToast(`Messaggio non inviato: ${error}`, 'error');
+    });
     return () => es.close();
-  }, [refreshConversations]);
+  }, [refreshConversations, showToast]);
 
   // ─── CRUD helpers (Optimistic UI) ───
   // Pattern: aggiorno lo state subito con dati ottimistici (id temporaneo),
@@ -344,6 +353,7 @@ export function DataProvider({ children }) {
     getChannel, getCustomer, getProduct, getProductType, getExpenseCat,
     // Utils
     loading, refreshAll,
+    whatsappStatus,
     toast, showToast, hideToast,
     api,
   };
