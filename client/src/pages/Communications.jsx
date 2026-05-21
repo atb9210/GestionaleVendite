@@ -1,6 +1,7 @@
 // Pagina Comunicazioni — Chat-style split panel (WhatsApp-like)
 import { useState, useRef, useEffect } from 'react';
-import { useData, genId } from '../context/DataContext';
+import { useData } from '../context/DataContext';
+import PhoneInput from '../components/PhoneInput';
 
 const STATUSES = {
   new_lead:   { label:'Nuovo lead',  color:'#818cf8', dot:'#818cf8' },
@@ -11,13 +12,13 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, msgTemplates, getCustomer, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, refreshConversations } = useData();
+  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, refreshConversations } = useData();
   const [activeId, setActiveId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [msgInput, setMsgInput] = useState('');
   const [showNewContact, setShowNewContact] = useState(false);
-  const [newContact, setNewContact] = useState({ name:'', phone:'' });
+  const [newContact, setNewContact] = useState({ name:'', phone:{ countryCode:'IT', number:'' } });
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
 
@@ -29,6 +30,14 @@ export default function Communications() {
     es.addEventListener('new-message', () => refreshConversations());
     return () => es.close();
   }, [refreshConversations]);
+
+  // Segna come letto quando si apre una conversazione
+  useEffect(() => {
+    if (!activeId) return;
+    const conv = conversations.find(c => c.id === activeId);
+    if (!conv?.unread) return;
+    updateConversation(activeId, { unread: false }).catch(() => {});
+  }, [activeId]);
 
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
@@ -86,11 +95,15 @@ export default function Communications() {
 
   // Create new contact
   const createContact = async () => {
-    if (!newContact.name.trim() || !newContact.phone.trim()) return;
+    if (!newContact.name.trim() || !newContact.phone.number.trim()) return;
+    const { countryCode, number } = newContact.phone;
+    const COUNTRIES = { IT:'+39', DE:'+49', FR:'+33', ES:'+34', GB:'+44', US:'+1', CH:'+41', AT:'+43', BE:'+32', NL:'+31', PT:'+351', RO:'+40', AL:'+355' };
+    const prefix = COUNTRIES[countryCode] || '+39';
+    const phone = prefix + number.replace(/\s/g, '');
     try {
-      await createConversation({ contactName: newContact.name.trim(), phone: newContact.phone.trim(), status: 'NEW_LEAD' });
+      await createConversation({ contactName: newContact.name.trim(), phone, status: 'NEW_LEAD' });
       setShowNewContact(false);
-      setNewContact({ name:'', phone:'' });
+      setNewContact({ name:'', phone:{ countryCode:'IT', number:'' } });
       showToast('Contatto creato');
     } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
@@ -137,7 +150,7 @@ export default function Communications() {
             {filtered.map(conv => {
               const st = STATUSES[conv.status];
               const isActive = conv.id === activeId;
-              const unread = conv.messages.length > 0 && conv.messages[conv.messages.length - 1].dir === 'in';
+              const unread = conv.unread;
               return (
                 <div key={conv.id} className={`comm-contact ${isActive ? 'active' : ''}`} onClick={() => setActiveId(conv.id)}>
                   <div className="comm-contact-avatar">
@@ -235,7 +248,7 @@ export default function Communications() {
             <div className="modal-header"><span className="modal-title">Nuovo contatto</span><button className="modal-close" onClick={() => setShowNewContact(false)}>✕</button></div>
             <div className="modal-body">
               <div className="form-group"><label className="form-label">Nome</label><input className="form-input" value={newContact.name} onChange={e => setNewContact({...newContact, name:e.target.value})} placeholder="es. Mario Rossi" /></div>
-              <div className="form-group"><label className="form-label">Telefono WhatsApp</label><input className="form-input" value={newContact.phone} onChange={e => setNewContact({...newContact, phone:e.target.value})} placeholder="+39 3XX XXXXXXX" /></div>
+              <div className="form-group"><label className="form-label">Telefono WhatsApp</label><PhoneInput value={newContact.phone} onChange={phone => setNewContact({...newContact, phone})} /></div>
               <div className="form-actions"><button className="btn-secondary" onClick={() => setShowNewContact(false)}>Annulla</button><button className="btn-primary" onClick={createContact}>Crea contatto</button></div>
             </div>
           </div>

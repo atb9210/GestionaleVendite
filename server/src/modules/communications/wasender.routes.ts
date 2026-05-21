@@ -55,15 +55,16 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
 
   if (!text) return;
 
-  console.log(`[wasender] cercando conversazione per phone raw: ${phoneRaw}`);
-
-  const conversation = await prisma.conversation.findFirst({
+  let conversation = await prisma.conversation.findFirst({
     where: { phone: { contains: phoneRaw } },
   });
 
+  // Auto-create conversation for unknown senders so no message is ever lost
   if (!conversation) {
-    console.log(`[wasender] nessuna conversazione trovata per: ${phoneRaw}`);
-    return;
+    console.log(`[wasender] sconosciuto ${phoneRaw} — creo conversazione automaticamente`);
+    conversation = await prisma.conversation.create({
+      data: { contactName: phoneRaw, phone: phoneRaw, status: 'NEW_LEAD', unread: true },
+    });
   }
 
   await prisma.message.create({
@@ -71,7 +72,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
   });
   await prisma.conversation.update({
     where: { id: conversation.id },
-    data: { updatedAt: new Date() },
+    data: { updatedAt: new Date(), unread: true },
   });
   broadcastSSE('new-message', { conversationId: conversation.id });
   console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
