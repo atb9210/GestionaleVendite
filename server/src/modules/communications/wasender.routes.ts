@@ -2,9 +2,22 @@ import { Router, Request, Response } from 'express';
 import express from 'express';
 import { WasenderWebhookEventType } from 'wasenderapi';
 import { getWasender } from '../../config/wasender';
+import { broadcastSSE } from '../../lib/sse';
 import prisma from '../../config/prisma';
 
 const router = Router();
+
+// Dedup: evita di salvare lo stesso messaggio WhatsApp 3 volte (upsert + personal + received)
+const processedIds = new Set<string>();
+function isDuplicate(id: string): boolean {
+  if (processedIds.has(id)) return true;
+  processedIds.add(id);
+  if (processedIds.size > 500) {
+    const first = processedIds.values().next().value;
+    if (first) processedIds.delete(first);
+  }
+  return false;
+}
 
 // Actual runtime shape from Wasender (differs from SDK TypeScript types)
 interface WasenderMsgPayload {
@@ -60,6 +73,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
     where: { id: conversation.id },
     data: { updatedAt: new Date() },
   });
+  broadcastSSE('new-message', { conversationId: conversation.id });
   console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
 }
 
@@ -87,7 +101,7 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
 
     if (incomingTypes.includes(event.event)) {
       const msg = extractMsgPayload(event.data);
-      if (msg) await saveIncomingMessage(msg);
+      if (msg && !isDuplicate(msg.key.id)) await saveIncomingMessage(msg);
     }
 
     res.sendStatus(200);

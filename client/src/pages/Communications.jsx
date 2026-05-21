@@ -11,7 +11,7 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, msgTemplates, getCustomer, showToast, sendMessage: apiSendMessage, updateConversation, createConversation } = useData();
+  const { conversations, msgTemplates, getCustomer, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, refreshConversations } = useData();
   const [activeId, setActiveId] = useState(conversations[0]?.id || null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -21,6 +21,13 @@ export default function Communications() {
   const chatEndRef = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
+
+  // SSE — aggiornamento real-time quando arriva un messaggio WhatsApp
+  useEffect(() => {
+    const es = new EventSource('/api/events');
+    es.addEventListener('new-message', () => refreshConversations());
+    return () => es.close();
+  }, [refreshConversations]);
 
   // Auto-scroll to bottom on message change
   useEffect(() => {

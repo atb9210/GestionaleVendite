@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { errorHandler } from './middleware/errorHandler';
+import { addSSEClient } from './lib/sse';
 
 // ── Moduli dominio (1 modulo ≈ 1 pagina frontend) ──
 import customersRouter      from './modules/customers/routes';
@@ -44,6 +45,9 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server funzionante!' });
 });
+
+// SSE — push eventi real-time al frontend
+app.get('/api/events', (_req, res) => addSSEClient(res));
 
 // API Routes
 app.use('/api/v1/channels', channelsRouter);
