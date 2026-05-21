@@ -36,7 +36,7 @@ export default function Communications() {
     if (!activeId) return;
     const conv = conversations.find(c => c.id === activeId);
     if (!conv?.unread) return;
-    updateConversation(activeId, { unread: false }).catch(() => {});
+    updateConversation(activeId, { unread: false });
   }, [activeId]);
 
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
