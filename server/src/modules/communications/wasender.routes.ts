@@ -1,33 +1,55 @@
 import { Router, Request, Response } from 'express';
 import express from 'express';
-import {
-  WasenderWebhookEventType,
-  type MessagesUpsertData,
-  type PersonalMessageData,
-  type GenericMessageData,
-  type MessageContent,
-} from 'wasenderapi';
+import { WasenderWebhookEventType } from 'wasenderapi';
 import { getWasender } from '../../config/wasender';
 import prisma from '../../config/prisma';
 
 const router = Router();
 
-async function saveIncomingMessage(remoteJid: string, message: MessageContent) {
-  const phoneRaw = remoteJid.split('@')[0];
-  if (!phoneRaw) return;
+// Actual runtime shape from Wasender (differs from SDK TypeScript types)
+interface WasenderMsgPayload {
+  key: {
+    id: string;
+    fromMe: boolean;
+    remoteJid: string;
+    senderPn?: string;
+    cleanedSenderPn?: string;
+  };
+  message?: { conversation?: string; extendedTextMessage?: { text?: string } };
+  messageBody?: string;
+}
+
+function extractMsgPayload(data: unknown): WasenderMsgPayload | null {
+  if (!data || typeof data !== 'object') return null;
+  const d = data as Record<string, unknown>;
+  // Real Wasender payload wraps the message under { messages: { key, message, ... } }
+  const inner = (d.messages ?? d) as WasenderMsgPayload;
+  if (!inner?.key) return null;
+  return inner;
+}
+
+async function saveIncomingMessage(msg: WasenderMsgPayload) {
+  if (msg.key.fromMe) return;
+
+  // Use cleanedSenderPn (plain number) when available; remoteJid may be LID format
+  const phoneRaw = msg.key.cleanedSenderPn || msg.key.senderPn?.split('@')[0] || msg.key.remoteJid.split('@')[0];
 
   const text =
-    message?.conversation ||
-    message?.extendedTextMessage?.text ||
+    msg.messageBody ||
+    msg.message?.conversation ||
+    msg.message?.extendedTextMessage?.text ||
     '';
+
   if (!text) return;
+
+  console.log(`[wasender] cercando conversazione per phone raw: ${phoneRaw}`);
 
   const conversation = await prisma.conversation.findFirst({
     where: { phone: { contains: phoneRaw } },
   });
 
   if (!conversation) {
-    console.log(`[wasender] Nessuna conversazione trovata per phone: ${phoneRaw}`);
+    console.log(`[wasender] nessuna conversazione trovata per: ${phoneRaw}`);
     return;
   }
 
@@ -38,10 +60,10 @@ async function saveIncomingMessage(remoteJid: string, message: MessageContent) {
     where: { id: conversation.id },
     data: { updatedAt: new Date() },
   });
-  console.log(`[wasender] Messaggio IN salvato per conversazione ${conversation.id}`);
+  console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
 }
 
-// Needs raw body for signature verification — registered BEFORE express.json() in index.ts
+// Registered BEFORE express.json() in index.ts — needs raw body for signature verification
 router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: Response) => {
   try {
     const rawBody = (req.body as Buffer).toString('utf8');
@@ -55,36 +77,17 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
     if (!wasender) { res.sendStatus(503); return; }
 
     const event = await wasender.handleWebhookEvent(adapter);
-    console.log(`[wasender] webhook ricevuto: event=${event.event}`);
-    console.log(`[wasender] data:`, JSON.stringify(event.data, null, 2));
+    console.log(`[wasender] event: ${event.event}`);
 
-    // messages.upsert — formato array, può contenere messaggi IN e OUT
-    if (event.event === WasenderWebhookEventType.MessagesUpsert) {
-      const dataArr: MessagesUpsertData[] = Array.isArray(event.data) ? event.data : [event.data];
-      for (const msgData of dataArr) {
-        if (msgData.key.fromMe) continue;
-        if (msgData.message) {
-          await saveIncomingMessage(msgData.key.remoteJid, msgData.message);
-        }
-      }
-    }
+    const incomingTypes = [
+      WasenderWebhookEventType.MessagesUpsert,
+      WasenderWebhookEventType.MessagesPersonalReceived,
+      WasenderWebhookEventType.MessagesReceived,
+    ] as string[];
 
-    // messages-personal.received — messaggio personale in entrata
-    if (event.event === WasenderWebhookEventType.MessagesPersonalReceived) {
-      const dataArr: PersonalMessageData[] = Array.isArray(event.data) ? event.data : [event.data];
-      for (const msgData of dataArr) {
-        if (msgData.key.fromMe) continue;
-        await saveIncomingMessage(msgData.key.remoteJid, msgData.message);
-      }
-    }
-
-    // messages.received — evento generico messaggi
-    if (event.event === WasenderWebhookEventType.MessagesReceived) {
-      const dataArr: GenericMessageData[] = Array.isArray(event.data) ? event.data : [event.data];
-      for (const msgData of dataArr) {
-        if (msgData.key.fromMe) continue;
-        await saveIncomingMessage(msgData.key.remoteJid, msgData.message);
-      }
+    if (incomingTypes.includes(event.event)) {
+      const msg = extractMsgPayload(event.data);
+      if (msg) await saveIncomingMessage(msg);
     }
 
     res.sendStatus(200);
