@@ -21,6 +21,7 @@ export default function Communications() {
   const [newContact, setNewContact] = useState({ name:'', phone:{ countryCode:'IT', number:'' } });
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
 
@@ -66,12 +67,24 @@ export default function Communications() {
   const counts = {};
   Object.keys(STATUSES).forEach(k => { counts[k] = conversations.filter(c => c.status === k).length; });
 
+  // Auto-resize textarea
+  const handleTextareaInput = (e) => {
+    setMsgInput(e.target.value);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  };
+  const resetTextarea = () => {
+    setMsgInput('');
+    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
+  };
+
   // Send message
   const handleSendMessage = async () => {
     if (!msgInput.trim() || !activeId) return;
     try {
       await apiSendMessage(activeId, { direction: 'OUT', text: msgInput.trim(), auto: false });
-      setMsgInput('');
+      resetTextarea();
     } catch (e) { showToast(e.message || 'Errore invio', 'error'); }
   };
 
@@ -106,6 +119,18 @@ export default function Communications() {
       setNewContact({ name:'', phone:{ countryCode:'IT', number:'' } });
       showToast('Contatto creato');
     } catch (e) { showToast(e.message || 'Errore', 'error'); }
+  };
+
+  // Separatore data messaggi
+  const getDayLabel = (isoDate) => {
+    if (!isoDate) return '';
+    const d = new Date(isoDate);
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Oggi';
+    if (d.toDateString() === yesterday.toDateString()) return 'Ieri';
+    const months = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+    return `${d.getDate()} ${months[d.getMonth()]}`;
   };
 
   // Last message preview
@@ -198,15 +223,24 @@ export default function Communications() {
 
               {/* Messages */}
               <div className="comm-messages" ref={messagesRef}>
-                {active.messages.map(msg => (
-                  <div key={msg.id} className={`comm-bubble ${msg.dir === 'out' ? 'out' : 'in'}`}>
-                    <div className="comm-bubble-text">{msg.text}</div>
-                    <div className="comm-bubble-meta">
-                      {msg.ts}
-                      {msg.auto && <span className="comm-auto-badge">🤖 auto</span>}
-                    </div>
-                  </div>
-                ))}
+                {active.messages.map((msg, i) => {
+                  const dayLabel = getDayLabel(msg.createdAt);
+                  const prevDayLabel = i > 0 ? getDayLabel(active.messages[i - 1].createdAt) : null;
+                  return (
+                    <>
+                      {dayLabel !== prevDayLabel && (
+                        <div key={`sep-${i}`} className="comm-day-sep"><span>{dayLabel}</span></div>
+                      )}
+                      <div key={msg.id} className={`comm-bubble ${msg.dir === 'out' ? 'out' : 'in'}`}>
+                        <div className="comm-bubble-text">{msg.text}</div>
+                        <div className="comm-bubble-meta">
+                          {msg.ts}
+                          {msg.auto && <span className="comm-auto-badge">🤖 auto</span>}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })}
               </div>
 
               {/* Input area */}
@@ -219,13 +253,16 @@ export default function Communications() {
                   ))}
                 </div>
                 <div className="comm-input-row">
-                  <input
-                    type="text"
+                  <textarea
+                    ref={textareaRef}
                     className="comm-msg-input"
                     placeholder="Scrivi messaggio…"
                     value={msgInput}
-                    onChange={e => setMsgInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                    rows={1}
+                    onChange={handleTextareaInput}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
+                    }}
                   />
                   <button className="comm-send-btn" onClick={handleSendMessage} disabled={!msgInput.trim()}>▶</button>
                 </div>

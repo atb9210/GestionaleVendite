@@ -52,6 +52,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav-icon{font-size:14px;width:18px;text-align:center;opacity:0.75;flex-shrink:0;}
 .nav-label{flex:1;}
 .nav-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,0.2);font-family:var(--mono);letter-spacing:0.02em;}
+.nav-badge-unread{background:var(--accent-dim);color:var(--accent);border-color:rgba(99,102,241,0.3);}
 .sb-spacer{flex:1;min-height:20px;}
 .sb-footer{border-top:1px solid var(--border);padding-top:8px;margin-top:8px;}
 .user-card{display:flex;align-items:center;gap:9px;padding:8px;border-radius:8px;margin-top:4px;cursor:pointer;transition:background 0.12s;}
@@ -488,9 +489,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-tpl-btn{font-size:10.5px;padding:4px 9px;border-radius:12px;background:var(--bg);border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all 0.12s;white-space:nowrap;font-family:var(--font);}
 .comm-tpl-btn:hover{background:var(--accent-dim);color:var(--accent);border-color:var(--accent);}
 .comm-input-row{display:flex;gap:8px;}
-.comm-msg-input{flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:20px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);}
+.comm-msg-input{flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);resize:none;overflow-y:auto;min-height:38px;max-height:120px;line-height:1.45;display:block;}
 .comm-msg-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .comm-msg-input::placeholder{color:var(--text3);}
+.comm-day-sep{display:flex;align-items:center;gap:10px;margin:8px 0;color:var(--text3);font-size:11px;}
+.comm-day-sep::before,.comm-day-sep::after{content:'';flex:1;height:1px;background:var(--border);}
+.comm-day-sep span{white-space:nowrap;padding:2px 8px;background:var(--surface2);border-radius:10px;}
 .comm-send-btn{width:38px;height:38px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity 0.12s;}
 .comm-send-btn:disabled{opacity:0.4;cursor:default;}
 .comm-send-btn:hover:not(:disabled){opacity:0.85;}
