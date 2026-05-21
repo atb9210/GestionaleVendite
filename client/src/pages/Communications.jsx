@@ -19,6 +19,7 @@ export default function Communications() {
   const [showNewContact, setShowNewContact] = useState(false);
   const [newContact, setNewContact] = useState({ name:'', phone:'' });
   const chatEndRef = useRef(null);
+  const prevActiveIdRef = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
 
@@ -29,10 +30,13 @@ export default function Communications() {
     return () => es.close();
   }, [refreshConversations]);
 
-  // Auto-scroll to bottom on message change
+  // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior:'smooth' });
-  }, [active?.messages?.length]);
+    const isNewConv = prevActiveIdRef.current !== activeId;
+    prevActiveIdRef.current = activeId; // aggiorna sempre, anche quando active è null
+    if (!chatEndRef.current) return;
+    chatEndRef.current.scrollIntoView({ behavior: isNewConv ? 'instant' : 'smooth' });
+  }, [activeId, active?.messages?.length]);
 
   // Filtered contacts
   const filtered = conversations.filter(c => {
@@ -102,7 +106,7 @@ export default function Communications() {
 
   return (
     <main className="page comm-page">
-      <div className="comm-layout">
+      <div className={`comm-layout${activeId ? ' chat-open' : ''}`}>
         {/* ─── SIDEBAR CONTATTI ─── */}
         <div className="comm-sidebar">
           <div className="comm-sidebar-header">
@@ -156,9 +160,15 @@ export default function Communications() {
             <>
               {/* Chat header */}
               <div className="comm-chat-header">
-                <div className="comm-chat-header-info">
-                  <div className="comm-chat-name">{active.contactName}</div>
-                  <div className="comm-chat-phone">📱 {active.phone}</div>
+                <div className="comm-chat-header-left">
+                  <button className="comm-back-btn" onClick={() => setActiveId(null)}>
+                    <span className="comm-back-arrow">←</span>
+                    <span className="comm-back-label">Chat</span>
+                  </button>
+                  <div className="comm-chat-header-info">
+                    <div className="comm-chat-name">{active.contactName}</div>
+                    <div className="comm-chat-phone">📱 {active.phone}</div>
+                  </div>
                 </div>
                 <div className="comm-chat-header-actions">
                   <select className="comm-status-select" value={active.status} onChange={e => changeStatus(e.target.value)} style={{ borderColor: STATUSES[active.status]?.color }}>

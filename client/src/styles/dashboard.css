@@ -501,9 +501,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-empty-title{font-size:15px;font-weight:500;color:var(--text2);}
 .comm-empty-sub{font-size:12px;}
 
-/* Responsive: mobile stack */
+/* Back button — solo mobile */
+.comm-back-btn{display:none;}
+.comm-chat-header-left{display:flex;align-items:center;gap:8px;min-width:0;}
+
+/* Responsive: mobile */
 @media(max-width:768px){
-  .comm-layout{grid-template-columns:1fr;height:auto;}
-  .comm-sidebar{max-height:40vh;border-right:none;border-bottom:1px solid var(--border);}
-  .comm-chat{min-height:50vh;}
+  .comm-layout{grid-template-columns:1fr;height:calc(100vh - 56px);}
+
+  /* Default: solo lista */
+  .comm-sidebar{height:100%;max-height:none;border-right:none;border-bottom:none;}
+  .comm-chat{display:none;}
+
+  /* Chat aperta: nascondi lista, mostra chat a tutto schermo */
+  .comm-layout.chat-open .comm-sidebar{display:none;}
+  .comm-layout.chat-open .comm-chat{display:flex;height:100%;}
+
+  /* Header fisso mentre si scorre */
+  .comm-chat-header{position:sticky;top:0;z-index:10;}
+
+  /* Back button visibile */
+  .comm-back-btn{display:flex;align-items:center;gap:4px;padding:6px 10px 6px 6px;border-radius:20px;border:none;background:var(--surface2);color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0;font-family:var(--font);}
+  .comm-back-btn:active{opacity:0.7;}
+  .comm-back-arrow{font-size:16px;line-height:1;}
+  .comm-back-label{font-size:13px;}
+  /* Header: left group + actions ai lati */
+  .comm-chat-header{gap:8px;}
+  .comm-chat-header-left{flex:1;min-width:0;}
 }
