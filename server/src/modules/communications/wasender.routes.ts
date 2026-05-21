@@ -56,6 +56,7 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
 
     const event = await wasender.handleWebhookEvent(adapter);
     console.log(`[wasender] webhook ricevuto: event=${event.event}`);
+    console.log(`[wasender] data:`, JSON.stringify(event.data, null, 2));
 
     // messages.upsert — formato array, può contenere messaggi IN e OUT
     if (event.event === WasenderWebhookEventType.MessagesUpsert) {
