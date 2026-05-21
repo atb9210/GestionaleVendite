@@ -322,7 +322,7 @@ export function DataProvider({ children }) {
     createSubscription, updateSubscription, deleteSubscription,
     createPurchase, updatePurchase, deletePurchase,
     createExpense, updateExpense, deleteExpense,
-    createConversation, updateConversation, deleteConversation, sendMessage,
+    createConversation, updateConversation, deleteConversation, sendMessage, refreshConversations,
     createMsgTemplate, updateMsgTemplate, deleteMsgTemplate,
     createSupplier, updateSupplier, deleteSupplier,
     createProductType, createExpenseCategory,
