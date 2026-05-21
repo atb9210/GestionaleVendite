@@ -267,17 +267,24 @@ export function DataProvider({ children }) {
   }, [showToast]);
   const updateConversation = useCallback((id, data) => optimisticUpdate(setConversations, normalizeConversation, () => api.conversations.update(id, data), id, data, 'Errore aggiornamento conversazione'), [showToast]);
   const deleteConversation = useCallback((id) => optimisticDelete(setConversations, () => api.conversations.delete(id), id, 'Errore eliminazione conversazione'), [showToast]);
-  // Send message: optimistic append nel singolo thread, poi refetch della conversazione
+  // Send message: optimistic append + sostituzione con dato reale, senza full refresh
   const sendMessage = useCallback((convId, data) => {
     const tMsg = { id: tempId(), dir: (data.direction || 'out').toLowerCase(), text: data.text, ts: fmtDate(new Date().toISOString()), auto: !!data.auto };
     setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [...(c.messages || []), tMsg] } : c));
     api.conversations.addMessage(convId, data)
-      .then(() => refreshConversations())
+      .then(real => {
+        if (!real) return;
+        const realMsg = { ...real, dir: (real.direction || '').toLowerCase(), ts: fmtDate(real.createdAt) };
+        setConversations(prev => prev.map(c => c.id === convId
+          ? { ...c, messages: c.messages.map(m => m.id === tMsg.id ? realMsg : m) }
+          : c
+        ));
+      })
       .catch(e => {
         setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: c.messages.filter(m => m.id !== tMsg.id) } : c));
         showToast(e.message || 'Errore invio messaggio', 'error');
       });
-  }, [refreshConversations, showToast]);
+  }, [showToast]);
 
   // ─── Message Templates (no normalize) ───
   const createMsgTemplate = useCallback((data) => {
