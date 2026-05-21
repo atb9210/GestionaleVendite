@@ -107,13 +107,13 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
 
     // Stato connessione sessione WhatsApp
     if (event.event === 'session.status') {
-      const data = event.data as { status: string };
+      const data = event.data as unknown as { status: string };
       broadcastSSE('session-status', { status: data?.status || 'unknown' });
     }
 
     // Conferma/errore invio messaggio
     if (event.event === 'message.sent') {
-      const data = event.data as { success: boolean; error?: string };
+      const data = event.data as unknown as { success: boolean; error?: string };
       if (data?.success === false) {
         broadcastSSE('message-failed', { error: data.error || 'Invio fallito' });
       }
