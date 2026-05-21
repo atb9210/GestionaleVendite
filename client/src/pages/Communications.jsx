@@ -12,7 +12,7 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, refreshConversations } = useData();
+  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation } = useData();
   const [activeId, setActiveId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -24,13 +24,6 @@ export default function Communications() {
   const textareaRef = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
-
-  // SSE — aggiornamento real-time quando arriva un messaggio WhatsApp
-  useEffect(() => {
-    const es = new EventSource('/api/events');
-    es.addEventListener('new-message', () => refreshConversations());
-    return () => es.close();
-  }, [refreshConversations]);
 
   // Segna come letto quando si apre una conversazione (anche se arriva mentre è già aperta)
   useEffect(() => {

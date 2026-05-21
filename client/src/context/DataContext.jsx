@@ -140,6 +140,13 @@ export function DataProvider({ children }) {
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
 
+  // SSE — connessione persistente per aggiornamenti real-time WhatsApp
+  useEffect(() => {
+    const es = new EventSource('/api/events');
+    es.addEventListener('new-message', () => refreshConversations());
+    return () => es.close();
+  }, [refreshConversations]);
+
   // Prefetch dati Dashboard (periodo 'month') in background, dopo il caricamento iniziale.
   // Non blocca la LoadingGate. Riempie dashCache così la Dashboard renderizza istantaneamente.
   useEffect(() => {
