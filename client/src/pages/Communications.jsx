@@ -12,13 +12,13 @@ const STATUSES = {
 
 export default function Communications() {
   const { conversations, msgTemplates, getCustomer, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, refreshConversations } = useData();
-  const [activeId, setActiveId] = useState(conversations[0]?.id || null);
+  const [activeId, setActiveId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [msgInput, setMsgInput] = useState('');
   const [showNewContact, setShowNewContact] = useState(false);
   const [newContact, setNewContact] = useState({ name:'', phone:'' });
-  const chatEndRef = useRef(null);
+  const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
@@ -33,9 +33,14 @@ export default function Communications() {
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
     const isNewConv = prevActiveIdRef.current !== activeId;
-    prevActiveIdRef.current = activeId; // aggiorna sempre, anche quando active è null
-    if (!chatEndRef.current) return;
-    chatEndRef.current.scrollIntoView({ behavior: isNewConv ? 'instant' : 'smooth' });
+    prevActiveIdRef.current = activeId;
+    if (!messagesRef.current) return;
+    const el = messagesRef.current;
+    if (isNewConv) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
   }, [activeId, active?.messages?.length]);
 
   // Filtered contacts
@@ -179,7 +184,7 @@ export default function Communications() {
               </div>
 
               {/* Messages */}
-              <div className="comm-messages">
+              <div className="comm-messages" ref={messagesRef}>
                 {active.messages.map(msg => (
                   <div key={msg.id} className={`comm-bubble ${msg.dir === 'out' ? 'out' : 'in'}`}>
                     <div className="comm-bubble-text">{msg.text}</div>
@@ -189,7 +194,6 @@ export default function Communications() {
                     </div>
                   </div>
                 ))}
-                <div ref={chatEndRef} />
               </div>
 
               {/* Input area */}
