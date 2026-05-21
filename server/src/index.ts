@@ -7,6 +7,7 @@ dotenv.config();
 
 import { errorHandler } from './middleware/errorHandler';
 import { addSSEClient } from './lib/sse';
+import { getWasender } from './config/wasender';
 
 // ── Moduli dominio (1 modulo ≈ 1 pagina frontend) ──
 import customersRouter      from './modules/customers/routes';
@@ -47,7 +48,19 @@ app.get('/api/health', (req, res) => {
 });
 
 // SSE — push eventi real-time al frontend
-app.get('/api/events', (_req, res) => addSSEClient(res));
+app.get('/api/events', (_req, res) => {
+  addSSEClient(res);
+  // Interroga Wasender per lo stato sessione corrente e lo invia subito al client
+  const wasender = getWasender();
+  if (wasender) {
+    wasender.getSessionStatus()
+      .then(result => {
+        const status = result?.response?.status || 'unknown';
+        res.write(`event: session-status\ndata: ${JSON.stringify({ status })}\n\n`);
+      })
+      .catch(() => {}); // silenzioso — non blocca l'SSE
+  }
+});
 
 // API Routes
 app.use('/api/v1/channels', channelsRouter);

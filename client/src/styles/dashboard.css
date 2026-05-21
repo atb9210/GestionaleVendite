@@ -445,6 +445,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--border);}
 .comm-sidebar-title{font-size:16px;font-weight:600;margin:0;}
 .comm-wa-status{display:flex;align-items:center;gap:4px;flex:1;margin-left:8px;}
+.comm-wa-status--unknown{display:none;}
 .comm-wa-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0;}
 .comm-wa-label{font-size:10px;color:var(--text3);white-space:nowrap;}
 .comm-wa-status--connected .comm-wa-dot{background:#22c55e;}

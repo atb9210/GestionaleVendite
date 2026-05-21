@@ -7,6 +7,9 @@ import prisma from '../../config/prisma';
 
 const router = Router();
 
+// Ultimo stato sessione WhatsApp noto — inviato ai nuovi client SSE al connect
+export let lastWaStatus = 'unknown';
+
 // Dedup: evita di salvare lo stesso messaggio WhatsApp 3 volte (upsert + personal + received)
 const processedIds = new Set<string>();
 function isDuplicate(id: string): boolean {
@@ -108,7 +111,8 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
     // Stato connessione sessione WhatsApp
     if (event.event === 'session.status') {
       const data = event.data as unknown as { status: string };
-      broadcastSSE('session-status', { status: data?.status || 'unknown' });
+      lastWaStatus = data?.status || 'unknown';
+      broadcastSSE('session-status', { status: lastWaStatus });
     }
 
     // Conferma/errore invio messaggio
