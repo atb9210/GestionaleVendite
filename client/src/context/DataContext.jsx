@@ -140,13 +140,6 @@ export function DataProvider({ children }) {
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
 
-  // SSE — connessione persistente per aggiornamenti real-time WhatsApp
-  useEffect(() => {
-    const es = new EventSource('/api/events');
-    es.addEventListener('new-message', () => refreshConversations());
-    return () => es.close();
-  }, [refreshConversations]);
-
   // Prefetch dati Dashboard (periodo 'month') in background, dopo il caricamento iniziale.
   // Non blocca la LoadingGate. Riempie dashCache così la Dashboard renderizza istantaneamente.
   useEffect(() => {
@@ -171,6 +164,13 @@ export function DataProvider({ children }) {
   const refreshPurchases      = useCallback(async () => { const d = await api.purchases.list(); setPurchases(d.map(normalizePurchase)); }, []);
   const refreshExpenses       = useCallback(async () => { const d = await api.expenses.list(); setExpenses(d.map(normalizeExpense)); }, []);
   const refreshConversations  = useCallback(async () => { const d = await api.conversations.list(); setConversations(d.map(normalizeConversation)); }, []);
+
+  // SSE — connessione persistente per aggiornamenti real-time WhatsApp (dopo la def. di refreshConversations)
+  useEffect(() => {
+    const es = new EventSource('/api/events');
+    es.addEventListener('new-message', () => refreshConversations());
+    return () => es.close();
+  }, [refreshConversations]);
 
   // ─── CRUD helpers (Optimistic UI) ───
   // Pattern: aggiorno lo state subito con dati ottimistici (id temporaneo),
