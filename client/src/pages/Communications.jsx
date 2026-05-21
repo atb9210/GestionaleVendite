@@ -32,13 +32,13 @@ export default function Communications() {
     return () => es.close();
   }, [refreshConversations]);
 
-  // Segna come letto quando si apre una conversazione
+  // Segna come letto quando si apre una conversazione (anche se arriva mentre è già aperta)
   useEffect(() => {
     if (!activeId) return;
     const conv = conversations.find(c => c.id === activeId);
-    if (!conv?.unread) return;
-    updateConversation(activeId, { unread: false });
-  }, [activeId]);
+    if (!conv?.unreadCount) return;
+    updateConversation(activeId, { unreadCount: 0 });
+  }, [activeId, active?.unreadCount]);
 
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function Communications() {
             {filtered.map(conv => {
               const st = STATUSES[conv.status];
               const isActive = conv.id === activeId;
-              const unread = conv.unread;
+              const unread = conv.unreadCount > 0;
               return (
                 <div key={conv.id} className={`comm-contact ${isActive ? 'active' : ''}`} onClick={() => setActiveId(conv.id)}>
                   <div className="comm-contact-avatar">
@@ -183,13 +183,13 @@ export default function Communications() {
                     {conv.contactName.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className="comm-contact-info">
-                    <div className="comm-contact-name">
-                      {conv.contactName}
-                      {unread && !isActive && <span className="comm-unread-dot"></span>}
-                    </div>
+                    <div className="comm-contact-name">{conv.contactName}</div>
                     <div className="comm-contact-preview">{lastMsg(conv)}</div>
                   </div>
-                  <div className="comm-contact-time">{lastTime(conv)}</div>
+                  <div className="comm-contact-meta">
+                    <div className="comm-contact-time">{lastTime(conv)}</div>
+                    {unread && !isActive && <span className="comm-unread-badge">{conv.unreadCount}</span>}
+                  </div>
                 </div>
               );
             })}

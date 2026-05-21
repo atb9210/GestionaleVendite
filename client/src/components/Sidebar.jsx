@@ -7,7 +7,7 @@ const navItems = [
     { id: 'ordini', label: 'Ordini', icon: '🧾' },
     { id: 'clienti', label: 'Clienti', icon: '👥' },
     { id: 'comunicazioni', label: 'Comunicazioni', icon: '💬' },
-    { id: 'abbonamenti', label: 'Abbonamenti', icon: '♻️' },
+    { id: 'abbonamenti', label: 'Abbonamenti', icon: '♻️', badge: 2 },
   ]},
   { section: 'Catalogo & Costi', items: [
     { id: 'prodotti', label: 'Prodotti', icon: '📦', badge: 1 },
@@ -24,7 +24,7 @@ const navItems = [
 
 export default function Sidebar({ isOpen, onClose, currentPage, onPageChange }) {
   const { conversations } = useData();
-  const unreadCount = conversations.filter(c => c.unread).length;
+  const unreadCount = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   return (
     <>
@@ -59,6 +59,9 @@ export default function Sidebar({ isOpen, onClose, currentPage, onPageChange }) 
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>
+                {item.badge && (
+                  <span className="nav-badge">{item.badge}</span>
+                )}
                 {item.id === 'comunicazioni' && unreadCount > 0 && (
                   <span className="nav-badge nav-badge-unread">{unreadCount}</span>
                 )}
