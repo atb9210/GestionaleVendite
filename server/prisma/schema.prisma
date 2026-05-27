@@ -173,6 +173,7 @@ model Conversation {
   customerId  String?
   customer    Customer?  @relation(fields: [customerId], references: [id])
   status      ConvStatus @default(NEW_LEAD)
+  unreadCount Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   messages    Message[]

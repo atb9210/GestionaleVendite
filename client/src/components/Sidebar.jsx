@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useData } from '../context/DataContext';
 
 // Definizione delle voci di navigazione
 const navItems = [
@@ -23,6 +23,9 @@ const navItems = [
 ];
 
 export default function Sidebar({ isOpen, onClose, currentPage, onPageChange }) {
+  const { conversations } = useData();
+  const unreadCount = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+
   return (
     <>
       {/* Backdrop per mobile */}
@@ -58,6 +61,9 @@ export default function Sidebar({ isOpen, onClose, currentPage, onPageChange }) 
                 <span className="nav-label">{item.label}</span>
                 {item.badge && (
                   <span className="nav-badge">{item.badge}</span>
+                )}
+                {item.id === 'comunicazioni' && unreadCount > 0 && (
+                  <span className="nav-badge nav-badge-unread">{unreadCount}</span>
                 )}
               </button>
             ))}

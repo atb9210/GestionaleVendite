@@ -7,6 +7,9 @@ import prisma from '../../config/prisma';
 
 const router = Router();
 
+// Ultimo stato sessione WhatsApp noto — inviato ai nuovi client SSE al connect
+export let lastWaStatus = 'unknown';
+
 // Dedup: evita di salvare lo stesso messaggio WhatsApp 3 volte (upsert + personal + received)
 const processedIds = new Set<string>();
 function isDuplicate(id: string): boolean {
@@ -55,15 +58,16 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
 
   if (!text) return;
 
-  console.log(`[wasender] cercando conversazione per phone raw: ${phoneRaw}`);
-
-  const conversation = await prisma.conversation.findFirst({
+  let conversation = await prisma.conversation.findFirst({
     where: { phone: { contains: phoneRaw } },
   });
 
+  // Auto-create conversation for unknown senders so no message is ever lost
   if (!conversation) {
-    console.log(`[wasender] nessuna conversazione trovata per: ${phoneRaw}`);
-    return;
+    console.log(`[wasender] sconosciuto ${phoneRaw} — creo conversazione automaticamente`);
+    conversation = await prisma.conversation.create({
+      data: { contactName: phoneRaw, phone: phoneRaw, status: 'NEW_LEAD' },
+    });
   }
 
   await prisma.message.create({
@@ -71,7 +75,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
   });
   await prisma.conversation.update({
     where: { id: conversation.id },
-    data: { updatedAt: new Date() },
+    data: { updatedAt: new Date(), unreadCount: { increment: 1 } },
   });
   broadcastSSE('new-message', { conversationId: conversation.id });
   console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
@@ -102,6 +106,21 @@ router.post('/webhook', express.raw({ type: '*/*' }), async (req: Request, res: 
     if (incomingTypes.includes(event.event)) {
       const msg = extractMsgPayload(event.data);
       if (msg && !isDuplicate(msg.key.id)) await saveIncomingMessage(msg);
+    }
+
+    // Stato connessione sessione WhatsApp
+    if (event.event === 'session.status') {
+      const data = event.data as unknown as { status: string };
+      lastWaStatus = data?.status || 'unknown';
+      broadcastSSE('session-status', { status: lastWaStatus });
+    }
+
+    // Conferma/errore invio messaggio
+    if (event.event === 'message.sent') {
+      const data = event.data as unknown as { success: boolean; error?: string };
+      if (data?.success === false) {
+        broadcastSSE('message-failed', { error: data.error || 'Invio fallito' });
+      }
     }
 
     res.sendStatus(200);
