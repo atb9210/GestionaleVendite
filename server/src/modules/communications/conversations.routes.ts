@@ -3,6 +3,7 @@ import prisma from '../../config/prisma';
 import { z } from 'zod';
 import { validate } from '../../middleware/validate';
 import { getWasender } from '../../config/wasender';
+import { normalizePhone } from '../../lib/phone';
 
 const router = Router();
 
@@ -43,7 +44,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', validate(ConversationSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const conversation = await prisma.conversation.create({
-      data: req.body,
+      data: { ...req.body, phone: normalizePhone(req.body.phone) },
       include: { customer: true, messages: true },
     });
     res.status(201).json(conversation);

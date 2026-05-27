@@ -3,6 +3,7 @@ import express from 'express';
 import { WasenderWebhookEventType } from 'wasenderapi';
 import { getWasender } from '../../config/wasender';
 import { broadcastSSE } from '../../lib/sse';
+import { normalizePhone } from '../../lib/phone';
 import prisma from '../../config/prisma';
 
 const router = Router();
@@ -48,7 +49,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
   if (msg.key.fromMe) return;
 
   // Use cleanedSenderPn (plain number) when available; remoteJid may be LID format
-  const phoneRaw = msg.key.cleanedSenderPn || msg.key.senderPn?.split('@')[0] || msg.key.remoteJid.split('@')[0];
+  const phoneRaw = normalizePhone(msg.key.cleanedSenderPn || msg.key.senderPn?.split('@')[0] || msg.key.remoteJid.split('@')[0]);
 
   const text =
     msg.messageBody ||
@@ -59,21 +60,20 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
   if (!text) return;
 
   let conversation = await prisma.conversation.findFirst({
-    where: { phone: { contains: phoneRaw } },
+    where: { phone: phoneRaw },
   });
 
   // Auto-create conversation for unknown senders so no message is ever lost
   if (!conversation) {
     // Cerca se il numero corrisponde a un cliente esistente
-    const phoneNorm = phoneRaw.replace(/\D/g, '');
-    const suffix = phoneNorm.slice(-9);
+    const phoneDigits = phoneRaw.replace(/\D/g, '');
     const allCustomers = await prisma.customer.findMany({ select: { id: true, name: true, phone: true } });
     const matched = allCustomers.find(c => {
       const cp = c.phone as { countryCode?: string; number?: string } | null;
       if (!cp?.number) return false;
       const prefixes: Record<string, string> = { IT:'39', DE:'49', FR:'33', ES:'34', GB:'44', US:'1', CH:'41', AT:'43', BE:'32', NL:'31', PT:'351', RO:'40', AL:'355' };
       const cn = (prefixes[cp.countryCode || ''] || '') + cp.number.replace(/\D/g, '');
-      return cn.length >= 8 && (cn.endsWith(suffix) || phoneNorm.endsWith(cn.slice(-9)));
+      return cn.length >= 8 && cn === phoneDigits;
     });
 
     console.log(`[wasender] sconosciuto ${phoneRaw} — creo conversazione${matched ? ` (cliente: ${matched.name})` : ''}`);

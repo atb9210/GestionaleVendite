@@ -124,7 +124,7 @@ export default function Communications() {
   const phoneMatch = (a, b) => {
     const na = normalizePhone(a), nb = normalizePhone(b);
     if (!na || !nb || na.length < 8 || nb.length < 8) return false;
-    return na.endsWith(nb.slice(-9)) || nb.endsWith(na.slice(-9));
+    return na === nb;
   };
 
   // Collega / scollega cliente — auto-rename con nome cliente
