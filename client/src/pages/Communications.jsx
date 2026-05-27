@@ -25,7 +25,11 @@ export default function Communications() {
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [notes, setNotes] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callNote, setCallNote] = useState('');
+  const [callNoteSaving, setCallNoteSaving] = useState(false);
   const nameInputRef = useRef(null);
+  const callInitiatedRef = useRef(false);
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
   const textareaRef = useRef(null);
@@ -45,6 +49,19 @@ export default function Communications() {
     setNotes(active?.notes || '');
     setShowInfoPanel(false);
   }, [activeId]);
+
+  // Popup note post-chiamata quando l'utente torna all'app
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && callInitiatedRef.current) {
+        callInitiatedRef.current = false;
+        setCallNote('');
+        setShowCallModal(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
@@ -120,6 +137,32 @@ export default function Communications() {
     setEditingName(false);
   };
   const cancelEditName = () => setEditingName(false);
+
+  // Avvia chiamata
+  const handleCall = () => {
+    if (!active?.phone) return;
+    callInitiatedRef.current = true;
+    window.location.href = `tel:${active.phone}`;
+  };
+
+  // Salva nota post-chiamata (appende con timestamp)
+  const saveCallNote = async () => {
+    setCallNoteSaving(true);
+    const now = new Date();
+    const ts = `${now.getDate()}/${String(now.getMonth() + 1).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const entry = callNote.trim() ? `📞 ${ts} — ${callNote.trim()}` : `📞 ${ts}`;
+    const updatedNotes = notes ? `${notes}\n${entry}` : entry;
+    try {
+      await updateConversation(activeId, { notes: updatedNotes });
+      setNotes(updatedNotes);
+      showToast('Nota chiamata salvata');
+      setShowCallModal(false);
+    } catch (e) {
+      showToast(e.message || 'Errore salvataggio', 'error');
+    } finally {
+      setCallNoteSaving(false);
+    }
+  };
 
   // Salva note conversazione
   const saveNotes = async () => {
@@ -327,6 +370,7 @@ export default function Communications() {
                   </div>
                 </div>
                 <div className="comm-chat-header-actions">
+                  <button className="comm-call-btn" onClick={handleCall} title="Chiama">📞</button>
                   <button className={`comm-info-btn${showInfoPanel ? ' active' : ''}`} onClick={() => setShowInfoPanel(p => !p)} title="Informazioni">ⓘ</button>
                   <select className="comm-status-select" value={active.status} onChange={e => changeStatus(e.target.value)} style={{ borderColor: STATUSES[active.status]?.color }}>
                     {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -439,6 +483,37 @@ export default function Communications() {
           )}
         </div>
       </div>
+
+      {/* Modal note post-chiamata */}
+      {showCallModal && (
+        <div className="modal-backdrop" onClick={() => setShowCallModal(false)}>
+          <div className="modal-content comm-call-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">📞 Nota post-chiamata</span>
+              <button className="modal-close" onClick={() => setShowCallModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p className="comm-call-modal-sub">Come è andata la chiamata con <strong>{active?.contactName}</strong>?</p>
+              <div className="form-group">
+                <textarea
+                  className="form-input comm-call-note-ta"
+                  value={callNote}
+                  onChange={e => setCallNote(e.target.value)}
+                  placeholder="es. Interessato, richiamarlo tra 3 giorni..."
+                  rows={4}
+                  autoFocus
+                />
+              </div>
+              <div className="form-actions">
+                <button className="btn-secondary" onClick={() => setShowCallModal(false)}>Salta</button>
+                <button className="btn-primary" onClick={saveCallNote} disabled={callNoteSaving}>
+                  {callNoteSaving ? 'Salvataggio…' : 'Salva nota'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal nuovo contatto */}
       {showNewContact && (

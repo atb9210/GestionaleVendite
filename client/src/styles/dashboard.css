@@ -500,6 +500,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-order-link{font-size:11px;color:var(--accent);font-weight:500;}
 
 /* Info Panel */
+.comm-call-btn{background:none;border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:15px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;flex-shrink:0;}
+.comm-call-btn:hover{background:var(--green-dim);border-color:var(--green);}
 .comm-info-btn{background:none;border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:background 0.12s,color 0.12s,border-color 0.12s;flex-shrink:0;}
 .comm-info-btn:hover,.comm-info-btn.active{background:var(--accent-glow);color:var(--accent2);border-color:var(--accent);}
 .comm-info-panel{position:absolute;top:0;right:0;bottom:0;width:300px;background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:20;display:flex;flex-direction:column;}
@@ -519,6 +521,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-info-notes-ta:focus{outline:none;border-color:var(--accent);}
 .comm-info-notes-save{margin-top:8px;align-self:flex-start;}
 @media(max-width:767px){.comm-info-panel{width:100%;}}
+.comm-call-modal-sub{font-size:13px;color:var(--text2);margin-bottom:12px;}
+.comm-call-note-ta{resize:vertical;min-height:90px;font-size:16px;}
 
 /* Messages area */
 .comm-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin;}
