@@ -12,7 +12,7 @@ const STATUSES = {
 };
 
 export default function Communications() {
-  const { conversations, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, whatsappStatus } = useData();
+  const { conversations, customers, msgTemplates, showToast, sendMessage: apiSendMessage, updateConversation, createConversation, whatsappStatus } = useData();
   const [activeId, setActiveId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -21,6 +21,7 @@ export default function Communications() {
   const [newContact, setNewContact] = useState({ name:'', phone:{ countryCode:'IT', number:'' } });
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const nameInputRef = useRef(null);
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
@@ -111,6 +112,32 @@ export default function Communications() {
   };
   const cancelEditName = () => setEditingName(false);
 
+  // Normalizza numero telefono per confronto (strips non-digits)
+  const normalizePhone = (p) => {
+    if (!p) return '';
+    if (typeof p === 'object' && p.number) {
+      const prefixes = { IT:'39', DE:'49', FR:'33', ES:'34', GB:'44', US:'1', CH:'41', AT:'43', BE:'32', NL:'31', PT:'351', RO:'40', AL:'355' };
+      return (prefixes[p.countryCode] || '') + String(p.number).replace(/\D/g, '');
+    }
+    return String(p).replace(/\D/g, '');
+  };
+  const phoneMatch = (a, b) => {
+    const na = normalizePhone(a), nb = normalizePhone(b);
+    if (!na || !nb || na.length < 8 || nb.length < 8) return false;
+    return na.endsWith(nb.slice(-9)) || nb.endsWith(na.slice(-9));
+  };
+
+  // Collega / scollega cliente — auto-rename con nome cliente
+  const linkCustomer = async (customerId) => {
+    const customer = customers.find(c => c.id === customerId);
+    const patch = { customerId: customerId || null, ...(customer && { contactName: customer.name }) };
+    try {
+      await updateConversation(activeId, patch);
+      setShowLinkCustomer(false);
+      showToast(customerId ? `Collegato a ${customer.name}` : 'Cliente scollegato');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
+  };
+
   // Change status
   const changeStatus = async (newStatus) => {
     try {
@@ -119,18 +146,25 @@ export default function Communications() {
     } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
-  // Create new contact
+  // Create new contact — auto-link se il numero corrisponde a un cliente
   const createContact = async () => {
     if (!newContact.name.trim() || !newContact.phone.number.trim()) return;
     const { countryCode, number } = newContact.phone;
     const COUNTRIES = { IT:'+39', DE:'+49', FR:'+33', ES:'+34', GB:'+44', US:'+1', CH:'+41', AT:'+43', BE:'+32', NL:'+31', PT:'+351', RO:'+40', AL:'+355' };
     const prefix = COUNTRIES[countryCode] || '+39';
     const phone = prefix + number.replace(/\s/g, '');
+    const customerMatch = customers.find(c => phoneMatch(c.phone, phone));
+    const contactName = customerMatch ? customerMatch.name : newContact.name.trim();
     try {
-      await createConversation({ contactName: newContact.name.trim(), phone, status: 'NEW_LEAD' });
+      await createConversation({
+        contactName,
+        phone,
+        status: 'NEW_LEAD',
+        ...(customerMatch && { customerId: customerMatch.id }),
+      });
       setShowNewContact(false);
       setNewContact({ name:'', phone:{ countryCode:'IT', number:'' } });
-      showToast('Contatto creato');
+      showToast(customerMatch ? `Contatto creato e collegato a ${customerMatch.name}` : 'Contatto creato');
     } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
@@ -200,6 +234,7 @@ export default function Communications() {
                   <div className="comm-contact-avatar">
                     <span className="comm-status-dot" style={{ background: st.dot }}></span>
                     {conv.contactName.split(' ').map(n => n[0]).join('')}
+                    {conv.customer && <span className="comm-avatar-customer-badge">👤</span>}
                   </div>
                   <div className="comm-contact-info">
                     <div className="comm-contact-name">{conv.contactName}</div>
@@ -249,6 +284,24 @@ export default function Communications() {
                       )}
                     </div>
                     <div className="comm-chat-phone">📱 {active.phone}</div>
+                    <div className="comm-customer-link">
+                      {active.customer ? (
+                        <>
+                          <span className="comm-customer-chip">👤 {active.customer.name}</span>
+                          <button className="comm-customer-unlink" onClick={() => linkCustomer(null)} title="Scollega">×</button>
+                        </>
+                      ) : showLinkCustomer ? (
+                        <select className="comm-customer-select" autoFocus
+                          onChange={e => linkCustomer(e.target.value || null)}
+                          onBlur={() => setShowLinkCustomer(false)}
+                          defaultValue="">
+                          <option value="">— Seleziona cliente —</option>
+                          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      ) : (
+                        <button className="comm-customer-add-btn" onClick={() => setShowLinkCustomer(true)}>+ collega cliente</button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="comm-chat-header-actions">

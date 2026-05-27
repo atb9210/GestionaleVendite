@@ -64,9 +64,26 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
 
   // Auto-create conversation for unknown senders so no message is ever lost
   if (!conversation) {
-    console.log(`[wasender] sconosciuto ${phoneRaw} — creo conversazione automaticamente`);
+    // Cerca se il numero corrisponde a un cliente esistente
+    const phoneNorm = phoneRaw.replace(/\D/g, '');
+    const suffix = phoneNorm.slice(-9);
+    const allCustomers = await prisma.customer.findMany({ select: { id: true, name: true, phone: true } });
+    const matched = allCustomers.find(c => {
+      const cp = c.phone as { countryCode?: string; number?: string } | null;
+      if (!cp?.number) return false;
+      const prefixes: Record<string, string> = { IT:'39', DE:'49', FR:'33', ES:'34', GB:'44', US:'1', CH:'41', AT:'43', BE:'32', NL:'31', PT:'351', RO:'40', AL:'355' };
+      const cn = (prefixes[cp.countryCode || ''] || '') + cp.number.replace(/\D/g, '');
+      return cn.length >= 8 && (cn.endsWith(suffix) || phoneNorm.endsWith(cn.slice(-9)));
+    });
+
+    console.log(`[wasender] sconosciuto ${phoneRaw} — creo conversazione${matched ? ` (cliente: ${matched.name})` : ''}`);
     conversation = await prisma.conversation.create({
-      data: { contactName: phoneRaw, phone: phoneRaw, status: 'NEW_LEAD' },
+      data: {
+        contactName: matched?.name || phoneRaw,
+        phone: phoneRaw,
+        status: 'NEW_LEAD',
+        ...(matched && { customerId: matched.id }),
+      },
     });
   }
 
