@@ -19,6 +19,9 @@ export default function Communications() {
   const [msgInput, setMsgInput] = useState('');
   const [showNewContact, setShowNewContact] = useState(false);
   const [newContact, setNewContact] = useState({ name:'', phone:{ countryCode:'IT', number:'' } });
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const nameInputRef = useRef(null);
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
   const textareaRef = useRef(null);
@@ -90,6 +93,23 @@ export default function Communications() {
       showToast('Template inviato');
     } catch (e) { showToast(e.message || 'Errore invio', 'error'); }
   };
+
+  // Rename contatto inline
+  const startEditName = () => {
+    setNameInput(active?.contactName || '');
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.select(), 0);
+  };
+  const saveEditName = async () => {
+    const trimmed = nameInput.trim();
+    if (trimmed && trimmed !== active?.contactName) {
+      try {
+        await updateConversation(activeId, { contactName: trimmed });
+      } catch (e) { showToast(e.message || 'Errore rinomina', 'error'); }
+    }
+    setEditingName(false);
+  };
+  const cancelEditName = () => setEditingName(false);
 
   // Change status
   const changeStatus = async (newStatus) => {
@@ -208,7 +228,26 @@ export default function Communications() {
                     <span className="comm-back-label">Chat</span>
                   </button>
                   <div className="comm-chat-header-info">
-                    <div className="comm-chat-name">{active.contactName}</div>
+                    <div className="comm-chat-name">
+                      {editingName ? (
+                        <input
+                          ref={nameInputRef}
+                          className="comm-name-input"
+                          value={nameInput}
+                          onChange={e => setNameInput(e.target.value)}
+                          onBlur={saveEditName}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); saveEditName(); }
+                            if (e.key === 'Escape') cancelEditName();
+                          }}
+                        />
+                      ) : (
+                        <>
+                          {active.contactName}
+                          <button className="comm-name-edit-btn" onClick={startEditName} title="Rinomina">✏️</button>
+                        </>
+                      )}
+                    </div>
                     <div className="comm-chat-phone">📱 {active.phone}</div>
                   </div>
                 </div>
