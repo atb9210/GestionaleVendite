@@ -502,7 +502,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-tpl-btn{font-size:10.5px;padding:4px 9px;border-radius:12px;background:var(--bg);border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all 0.12s;white-space:nowrap;font-family:var(--font);}
 .comm-tpl-btn:hover{background:var(--accent-dim);color:var(--accent);border-color:var(--accent);}
 .comm-input-row{display:flex;gap:8px;}
-.comm-msg-input{flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);resize:none;overflow-y:hidden;min-height:38px;max-height:120px;line-height:1.45;display:block;scrollbar-width:none;}
+.comm-msg-input{flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:14px;color:var(--text);font-size:16px;outline:none;font-family:var(--font);resize:none;overflow-y:hidden;min-height:38px;max-height:120px;line-height:1.45;display:block;scrollbar-width:none;}
 .comm-msg-input::-webkit-scrollbar{display:none;}
 .comm-msg-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .comm-msg-input::placeholder{color:var(--text3);}
