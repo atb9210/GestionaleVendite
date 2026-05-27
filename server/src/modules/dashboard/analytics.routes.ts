@@ -146,16 +146,18 @@ router.get('/products', async (req: Request, res: Response, next: NextFunction) 
     const period = (req.query.period as string) || 'month';
     const { from, to } = periodToRange(period);
 
-    const orders = await prisma.order.findMany({
-      where: { status: { in: [...SUCCESS] }, date: { gte: from, lte: to } },
+    const items = await prisma.orderItem.findMany({
+      where: { order: { status: { in: [...SUCCESS] }, date: { gte: from, lte: to } } },
       include: { product: true },
     });
 
     const map: Record<string, { name: string; revenue: number; volume: number }> = {};
-    orders.forEach(o => {
-      if (!map[o.productId]) map[o.productId] = { name: o.product.name, revenue: 0, volume: 0 };
-      map[o.productId].revenue += o.total;
-      map[o.productId].volume  += 1;
+    items.forEach(item => {
+      const pid = item.productId;
+      const pname = item.product.name;
+      if (!map[pid]) map[pid] = { name: pname, revenue: 0, volume: 0 };
+      map[pid].revenue += item.unitPrice * item.quantity;
+      map[pid].volume  += item.quantity;
     });
     res.json(Object.values(map).sort((a, b) => b.revenue - a.revenue));
   } catch (err) { next(err); }
