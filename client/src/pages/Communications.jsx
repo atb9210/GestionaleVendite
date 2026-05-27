@@ -22,6 +22,9 @@ export default function Communications() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
   const nameInputRef = useRef(null);
   const messagesRef = useRef(null);
   const prevActiveIdRef = useRef(null);
@@ -36,6 +39,12 @@ export default function Communications() {
     if (!conv?.unreadCount) return;
     updateConversation(activeId, { unreadCount: 0 });
   }, [activeId, active?.unreadCount]);
+
+  // Sync note e chiudi panel quando si cambia conversazione
+  useEffect(() => {
+    setNotes(active?.notes || '');
+    setShowInfoPanel(false);
+  }, [activeId]);
 
   // Scroll istantaneo quando si apre una conversazione, smooth per nuovi messaggi
   useEffect(() => {
@@ -111,6 +120,19 @@ export default function Communications() {
     setEditingName(false);
   };
   const cancelEditName = () => setEditingName(false);
+
+  // Salva note conversazione
+  const saveNotes = async () => {
+    setNotesSaving(true);
+    try {
+      await updateConversation(activeId, { notes });
+      showToast('Note salvate');
+    } catch (e) {
+      showToast(e.message || 'Errore salvataggio note', 'error');
+    } finally {
+      setNotesSaving(false);
+    }
+  };
 
   // Normalizza numero telefono per confronto (strips non-digits)
   const normalizePhone = (p) => {
@@ -305,6 +327,7 @@ export default function Communications() {
                   </div>
                 </div>
                 <div className="comm-chat-header-actions">
+                  <button className={`comm-info-btn${showInfoPanel ? ' active' : ''}`} onClick={() => setShowInfoPanel(p => !p)} title="Informazioni">ⓘ</button>
                   <select className="comm-status-select" value={active.status} onChange={e => changeStatus(e.target.value)} style={{ borderColor: STATUSES[active.status]?.color }}>
                     {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
@@ -332,6 +355,54 @@ export default function Communications() {
                     </>
                   );
                 })}
+              </div>
+
+              {/* Info Panel — slide-in da destra */}
+              <div className={`comm-info-panel${showInfoPanel ? ' open' : ''}`}>
+                <div className="comm-info-panel-header">
+                  <span className="comm-info-panel-title">Informazioni</span>
+                  <button className="comm-info-close" onClick={() => setShowInfoPanel(false)}>✕</button>
+                </div>
+                <div className="comm-info-panel-body">
+                  <div className="comm-info-section">
+                    <div className="comm-info-section-label">Tipo</div>
+                    <div className="comm-info-section-value">
+                      {active.customer
+                        ? <span className="comm-info-badge comm-info-badge--customer">👤 Cliente</span>
+                        : <span className="comm-info-badge comm-info-badge--lead">🆕 Lead</span>
+                      }
+                    </div>
+                  </div>
+                  {active.customer && (
+                    <div className="comm-info-section">
+                      <div className="comm-info-section-label">Cliente collegato</div>
+                      <div className="comm-info-section-value">{active.customer.name}</div>
+                    </div>
+                  )}
+                  <div className="comm-info-section">
+                    <div className="comm-info-section-label">Telefono</div>
+                    <div className="comm-info-section-value">{active.phone}</div>
+                  </div>
+                  <div className="comm-info-section">
+                    <div className="comm-info-section-label">Stato</div>
+                    <div className="comm-info-section-value">
+                      <span style={{ color: STATUSES[active.status]?.color }}>{STATUSES[active.status]?.label}</span>
+                    </div>
+                  </div>
+                  <div className="comm-info-section">
+                    <div className="comm-info-section-label">Note</div>
+                    <textarea
+                      className="comm-info-notes-ta"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      placeholder="Aggiungi note sul contatto..."
+                      rows={5}
+                    />
+                    <button className="btn-primary btn-sm comm-info-notes-save" onClick={saveNotes} disabled={notesSaving}>
+                      {notesSaving ? 'Salvataggio…' : 'Salva note'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Input area */}
