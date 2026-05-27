@@ -62,7 +62,7 @@ export default function Purchases() {
 
   const handleSave = async () => {
     if (!validate()) return;
-    const data = { poNumber:form.poNumber.trim(), supplierId:form.supplierId, items:form.items.trim(), total:Number(form.total), status:form.status.toUpperCase(), date:form.date, tracking:form.tracking.trim() || null };
+    const data = { poNumber:form.poNumber.trim(), supplierId:form.supplierId, items:form.items.trim(), total:Number(form.total), status:form.status.toUpperCase(), date:form.date, ...(form.tracking.trim() && { tracking: form.tracking.trim() }) };
     setModalOpen(false);
     try {
       if (editingId) {

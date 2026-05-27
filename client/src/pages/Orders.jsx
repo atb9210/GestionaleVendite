@@ -14,9 +14,10 @@ const STATUS = {
   active:   { label:'Attivo',      cls:'badge-green' },
 };
 
+const emptyItem = { productId: '', quantity: 1, unitPrice: '', unitCost: '' };
 const emptyShipping = { address:'', civico:'', cap:'', country:'Italia', tracking:'', contrassegno:false, phone:{ countryCode:'IT', number:'' } };
 const emptySub = { planId:'', amount:'', startDate:'' };
-const emptyForm = { customerId:'', productId:'', channel:'', total:'', cogs:'', status:'paid', date:'', shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
+const emptyForm = { customerId:'', channel:'', status:'paid', date:'', items:[{ ...emptyItem }], shipping:false, shippingData:emptyShipping, subscription:false, subData:emptySub };
 
 export default function Orders() {
   const { orders, customers, products, channels, subscriptions, getChannel, getCustomer, getProduct, showToast, createOrder, updateOrder, deleteOrder, createSubscription } = useData();
@@ -30,12 +31,17 @@ export default function Orders() {
   const [shipOpen, setShipOpen] = useState(true);
   const [subOpen, setSubOpen] = useState(true);
 
+  // Totali calcolati dagli items
+  const computedTotal = form.items.reduce((s, i) => s + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 1), 0);
+  const computedCogs  = form.items.reduce((s, i) => s + (Number(i.unitCost)  || 0) * (Number(i.quantity) || 1), 0);
+
   const filtered = orders.filter(o => {
     if (filter !== 'all' && o.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       const cust = getCustomer(o.customerId);
-      const prod = getProduct(o.productId);
+      const firstItem = o.orderItems?.[0];
+      const prod = firstItem ? getProduct(firstItem.productId) : getProduct(o.productId);
       return o.orderNumber.toLowerCase().includes(q) ||
         (cust && cust.name.toLowerCase().includes(q)) ||
         (prod && prod.name.toLowerCase().includes(q));
@@ -47,14 +53,32 @@ export default function Orders() {
   const ticket = orders.length > 0 ? Math.round(totalRev / orders.length) : 0;
   const filterCounts = { paid: orders.filter(o => o.status === 'paid').length, pending: orders.filter(o => o.status === 'pending').length, shipped: orders.filter(o => o.status === 'shipped').length, refunded: orders.filter(o => o.status === 'refunded').length };
 
+  // Items helpers
+  const updateItem = (idx, field, val) => {
+    const items = form.items.map((item, i) => {
+      if (i !== idx) return item;
+      const updated = { ...item, [field]: val };
+      // Auto-fill prezzo e cogs quando si seleziona un prodotto
+      if (field === 'productId') {
+        const p = products.find(x => x.id === val);
+        if (p) { updated.unitPrice = String(p.price); updated.unitCost = String(p.cost); }
+      }
+      return updated;
+    });
+    setForm({ ...form, items });
+  };
+  const addItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
+  const removeItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
+
   const validate = () => {
     const e = {};
     if (!form.customerId) e.customerId = 'Seleziona cliente';
-    if (!form.productId) e.productId = 'Seleziona prodotto';
     if (!form.channel) e.channel = 'Seleziona canale';
-    if (!form.total || isNaN(Number(form.total)) || Number(form.total) <= 0) e.total = 'Totale non valido';
-    if (!form.cogs || isNaN(Number(form.cogs)) || Number(form.cogs) < 0) e.cogs = 'COGS non valido';
     if (!form.date) e.date = 'Data obbligatoria';
+    form.items.forEach((item, idx) => {
+      if (!item.productId) e[`item_${idx}_product`] = 'Seleziona prodotto';
+      if (!item.unitPrice || Number(item.unitPrice) < 0) e[`item_${idx}_price`] = 'Prezzo non valido';
+    });
     if (form.shipping) {
       if (!form.shippingData.address.trim()) e.shipAddress = 'Indirizzo obbligatorio';
       if (!form.shippingData.cap.trim()) e.shipCap = 'CAP obbligatorio';
@@ -63,19 +87,35 @@ export default function Orders() {
     return Object.keys(e).length === 0;
   };
 
+  const openCreate = () => {
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    setForm({ ...emptyForm, date: iso, items: [{ ...emptyItem }] });
+    setEditingId(null); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true);
+  };
 
-
-  const openCreate = () => { setForm({...emptyForm, date: new Date().toISOString().split('T')[0]}); setEditingId(null); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true); };
   const openEdit = (order) => {
     const existingSub = order.subscriptionId ? subscriptions.find(s => s.id === order.subscriptionId) : null;
+    const subProducts = products.filter(p => p.type === 'sub');
     const subProd = existingSub ? subProducts.find(p => p.name === existingSub.plan) : null;
     const cust = getCustomer(order.customerId);
+
+    // Popola items da orderItems se disponibili, altrimenti fallback su productId legacy
+    const items = order.orderItems?.length
+      ? order.orderItems.map(i => ({ productId: i.productId, quantity: i.quantity, unitPrice: String(i.unitPrice), unitCost: String(i.unitCost) }))
+      : order.productId ? [{ productId: order.productId, quantity: 1, unitPrice: String(order.total), unitCost: String(order.cogs) }]
+      : [{ ...emptyItem }];
+
     setForm({
-      customerId:order.customerId, productId:order.productId, channel:order.channel,
-      total:String(order.total), cogs:String(order.cogs), status:order.status,
+      customerId: order.customerId, channel: order.channel, status: order.status,
       date: order._rawDate ? order._rawDate.split('T')[0] : order.date,
-      shipping:!!order.shippingAddress, shippingData: order.shippingAddress ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false, phone: order.shippingPhone || cust?.phone || emptyShipping.phone } : { ...emptyShipping, phone: cust?.phone || emptyShipping.phone },
-      subscription:!!order.subscriptionId, subData: existingSub ? { planId: subProd?.id || '', amount: String(existingSub.mrr || ''), startDate: existingSub._rawNext ? existingSub._rawNext.split('T')[0] : '' } : emptySub,
+      items,
+      shipping: !!order.shippingAddress,
+      shippingData: order.shippingAddress
+        ? { address:order.shippingAddress||'', civico:order.shippingCivico||'', cap:order.shippingCap||'', country:order.shippingCountry||'Italia', tracking:order.shippingTracking||'', contrassegno:order.contrassegno||false, phone: order.shippingPhone || cust?.phone || emptyShipping.phone }
+        : { ...emptyShipping, phone: cust?.phone || emptyShipping.phone },
+      subscription: !!order.subscriptionId,
+      subData: existingSub ? { planId: subProd?.id || '', amount: String(existingSub.mrr || ''), startDate: existingSub._rawNext ? existingSub._rawNext.split('T')[0] : '' } : emptySub,
     });
     setEditingId(order.id); setErrors({}); setShipOpen(true); setSubOpen(true); setModalOpen(true);
   };
@@ -83,8 +123,11 @@ export default function Orders() {
   const handleSave = async () => {
     if (!validate()) return;
     const orderData = {
-      customerId:form.customerId, productId:form.productId, channelId:form.channel,
-      total:Number(form.total), cogs:Number(form.cogs), status:form.status.toUpperCase(), date:form.date,
+      customerId: form.customerId,
+      channelId: form.channel,
+      status: form.status.toUpperCase(),
+      date: form.date,
+      items: form.items.map(i => ({ productId: i.productId, quantity: Number(i.quantity) || 1, unitPrice: Number(i.unitPrice) || 0, unitCost: Number(i.unitCost) || 0 })),
       ...(form.shipping && { shippingData: { address:form.shippingData.address, civico:form.shippingData.civico, cap:form.shippingData.cap, country:form.shippingData.country, tracking:form.shippingData.tracking, contrassegno:form.shippingData.contrassegno, phone: form.shippingData.phone?.number ? form.shippingData.phone : undefined } }),
     };
     setModalOpen(false);
@@ -95,7 +138,8 @@ export default function Orders() {
       } else {
         await createOrder(orderData);
         if (form.subscription && form.subData.planId) {
-          const prod = getProduct(form.subData.planId);
+          const subProducts = products.filter(p => p.type === 'sub');
+          const prod = subProducts.find(p => p.id === form.subData.planId);
           await createSubscription({ customerId:form.customerId, plan:prod?.name || 'Abbonamento', mrr:Number(form.subData.amount) || 0, nextDate:form.subData.startDate || form.date, status:'ACTIVE' });
         }
         showToast('Ordine creato');
@@ -111,12 +155,11 @@ export default function Orders() {
     } catch (e) { showToast(e.message || 'Errore eliminazione', 'error'); }
   };
 
-  // Options for SearchableSelect
   const customerOpts = customers.map((c, i) => ({ value:c.id, label:c.name, recent: i < 3 }));
-  const productOpts = products.map((p, i) => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}`, recent: i < 3 }));
-  const channelOpts = channels.map(c => ({ value:c.id, label:c.name }));
-  const subProducts = products.filter(p => p.type === 'sub');
-  const subOpts = subProducts.map(p => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}/mese` }));
+  const productOpts  = products.map((p, i) => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}`, recent: i < 3 }));
+  const channelOpts  = channels.map(c => ({ value:c.id, label:c.name }));
+  const subProducts  = products.filter(p => p.type === 'sub');
+  const subOpts      = subProducts.map(p => ({ value:p.id, label:`${p.name} — ${fmt(p.price)}/mese` }));
 
   return (
     <main className="page">
@@ -149,7 +192,9 @@ export default function Orders() {
         {filtered.map((order) => {
           const ch = getChannel(order.channel);
           const cust = getCustomer(order.customerId);
-          const prod = getProduct(order.productId);
+          const firstItem = order.orderItems?.[0];
+          const prod = firstItem ? getProduct(firstItem.productId) : getProduct(order.productId);
+          const extraItems = (order.orderItems?.length || 1) - 1;
           const st = STATUS[order.status] || { label: order.status, cls: 'badge-muted' };
           const profit = order.total - order.cogs;
           return (
@@ -157,7 +202,9 @@ export default function Orders() {
               <span className="ord-id">{order.orderNumber}</span>
               <div>
                 <div className="row-name">{cust?.name || '—'}</div>
-                <div className="row-meta">{prod?.name || '—'} · {order.date}</div>
+                <div className="row-meta">
+                  {prod?.name || '—'}{extraItems > 0 && ` +${extraItems}`} · {order.date}
+                </div>
               </div>
               <div>{ch && <span className="chan-badge" style={{ background:ch.dim, color:ch.color, borderColor:ch.bord }}><span className="chan-dot" style={{ background:ch.color }}></span>{ch.name}</span>}</div>
               <div><span className={`badge ${st.cls}`}>{st.label}</span></div>
@@ -176,8 +223,7 @@ export default function Orders() {
               const c = customers.find(x => x.id === v);
               const hasAddr = !!(c?.address);
               if (hasAddr) setShipOpen(true);
-              setForm({ ...form, customerId: v,
-                shipping: hasAddr || form.shipping,
+              setForm({ ...form, customerId: v, shipping: hasAddr || form.shipping,
                 shippingData: hasAddr
                   ? { ...emptyShipping, address: c.address||'', civico: c.civico||'', cap: c.cap||'', country: c.country||'Italia', phone: c.phone || emptyShipping.phone }
                   : { ...form.shippingData, phone: c?.phone || form.shippingData.phone },
@@ -186,32 +232,76 @@ export default function Orders() {
             {errors.customerId && <div className="form-error">{errors.customerId}</div>}
           </div>
           <div className="form-group">
-            <label className="form-label">Prodotto</label>
-            <SearchableSelect options={productOpts} value={form.productId} onChange={v => { const p = products.find(x => x.id === v); setForm({...form, productId:v, total: p ? String(p.price) : form.total, cogs: p ? String(p.cost) : form.cogs }); }} placeholder="Seleziona prodotto…" error={errors.productId} />
-            {errors.productId && <div className="form-error">{errors.productId}</div>}
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
             <label className="form-label">Canale</label>
             <SearchableSelect options={channelOpts} value={form.channel} onChange={v => setForm({...form, channel:v})} placeholder="Seleziona canale…" error={errors.channel} />
             {errors.channel && <div className="form-error">{errors.channel}</div>}
           </div>
+        </div>
+
+        {/* ─── PRODOTTI / ITEMS ─── */}
+        <div className="form-group">
+          <label className="form-label">Prodotti</label>
+          <div className="order-items-list">
+            {form.items.map((item, idx) => (
+              <div key={idx} className="order-item-row">
+                <div className="order-item-product">
+                  <SearchableSelect
+                    options={productOpts}
+                    value={item.productId}
+                    onChange={v => updateItem(idx, 'productId', v)}
+                    placeholder="Prodotto…"
+                    error={errors[`item_${idx}_product`]}
+                  />
+                </div>
+                <input
+                  type="number" min="1"
+                  className="form-input order-item-qty"
+                  value={item.quantity}
+                  onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                  placeholder="Qtà"
+                />
+                <input
+                  type="number" min="0" step="0.01"
+                  className={`form-input order-item-price ${errors[`item_${idx}_price`] ? 'error' : ''}`}
+                  value={item.unitPrice}
+                  onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
+                  placeholder="Prezzo €"
+                />
+                <input
+                  type="number" min="0" step="0.01"
+                  className="form-input order-item-price"
+                  value={item.unitCost}
+                  onChange={e => updateItem(idx, 'unitCost', e.target.value)}
+                  placeholder="COGS €"
+                />
+                {form.items.length > 1 && (
+                  <button type="button" className="order-item-remove" onClick={() => removeItem(idx)}>✕</button>
+                )}
+              </div>
+            ))}
+            <button type="button" className="order-item-add" onClick={addItem}>+ Aggiungi prodotto</button>
+          </div>
+          {computedTotal > 0 && (
+            <div className="order-items-totals">
+              <span>Totale: <strong>{fmt(computedTotal)}</strong></span>
+              <span>COGS: <strong>{fmt(computedCogs)}</strong></span>
+              <span>Margine: <strong style={{ color: computedTotal - computedCogs >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(computedTotal - computedCogs)}</strong></span>
+            </div>
+          )}
+        </div>
+
+        <div className="form-row">
           <div className="form-group">
             <label className="form-label">Stato</label>
             <select className="form-select" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
               {Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Totale (€)</label><input className={`form-input ${errors.total ? 'error' : ''}`} type="number" min="0" value={form.total} onChange={e => setForm({...form, total:e.target.value})} />{errors.total && <div className="form-error">{errors.total}</div>}</div>
-          <div className="form-group"><label className="form-label">COGS (€)</label><input className={`form-input ${errors.cogs ? 'error' : ''}`} type="number" min="0" value={form.cogs} onChange={e => setForm({...form, cogs:e.target.value})} />{errors.cogs && <div className="form-error">{errors.cogs}</div>}</div>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Data</label>
-          <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
-          {errors.date && <div className="form-error">{errors.date}</div>}
+          <div className="form-group">
+            <label className="form-label">Data</label>
+            <DatePicker value={form.date} onChange={v => setForm({...form, date:v})} error={errors.date} />
+            {errors.date && <div className="form-error">{errors.date}</div>}
+          </div>
         </div>
 
         {/* ─── TOGGLE SPEDIZIONE ─── */}

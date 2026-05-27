@@ -77,8 +77,9 @@ model Product {
   cost      Float
   stock     Int?
   lowStock  Int?
-  createdAt DateTime    @default(now())
-  orders    Order[]
+  createdAt  DateTime    @default(now())
+  orders     Order[]
+  orderItems OrderItem[]
 }
 
 model Order {
@@ -87,8 +88,8 @@ model Order {
   date             DateTime
   customerId       String
   customer         Customer      @relation(fields: [customerId], references: [id])
-  productId        String
-  product          Product       @relation(fields: [productId], references: [id])
+  productId        String?
+  product          Product?      @relation(fields: [productId], references: [id])
   channelId        String
   channel          Channel       @relation(fields: [channelId], references: [id])
   total            Float
@@ -105,6 +106,18 @@ model Order {
   subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  orderItems       OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  unitPrice Float
+  unitCost  Float
 }
 
 enum OrderStatus {
