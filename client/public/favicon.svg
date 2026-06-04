@@ -1,14 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="14" fill="#09090b"/>
-  <path d="M10 36 L14 24 Q16 20 20 20 L44 20 Q48 20 50 24 L54 36" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <rect x="8" y="34" width="48" height="14" rx="5" fill="#6366f1"/>
-  <rect x="12" y="22" width="40" height="14" rx="4" fill="#4f46e5"/>
-  <rect x="16" y="24" width="13" height="8" rx="2" fill="#a5b4fc" opacity="0.7"/>
-  <rect x="35" y="24" width="13" height="8" rx="2" fill="#a5b4fc" opacity="0.7"/>
-  <circle cx="18" cy="48" r="7" fill="#1e1e2e" stroke="#818cf8" stroke-width="2.5"/>
-  <circle cx="18" cy="48" r="3" fill="#6366f1"/>
-  <circle cx="46" cy="48" r="7" fill="#1e1e2e" stroke="#818cf8" stroke-width="2.5"/>
-  <circle cx="46" cy="48" r="3" fill="#6366f1"/>
-  <rect x="8" y="34" width="6" height="8" rx="2" fill="#f59e0b"/>
-  <rect x="50" y="34" width="6" height="8" rx="2" fill="#ef4444"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5bc8f5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+  <!-- car body -->
+  <path d="M100 310 L100 370 Q100 390 120 390 L392 390 Q412 390 412 370 L412 310 Z" fill="none" stroke="white" stroke-width="18" stroke-linejoin="round"/>
+  <!-- roof / cabin -->
+  <path d="M150 310 Q170 220 210 200 L302 200 Q342 220 362 310 Z" fill="none" stroke="white" stroke-width="18" stroke-linejoin="round"/>
+  <!-- windshield -->
+  <path d="M175 305 Q190 240 218 222 L294 222 Q322 240 337 305 Z" fill="none" stroke="white" stroke-width="14" stroke-linejoin="round"/>
+  <!-- left headlight -->
+  <rect x="112" y="318" width="70" height="30" rx="8" fill="none" stroke="white" stroke-width="14"/>
+  <!-- right headlight -->
+  <rect x="330" y="318" width="70" height="30" rx="8" fill="none" stroke="white" stroke-width="14"/>
+  <!-- license plate -->
+  <rect x="216" y="355" width="80" height="22" rx="5" fill="none" stroke="white" stroke-width="12"/>
+  <!-- left mirror -->
+  <path d="M100 300 L68 285 L68 310 L100 310" fill="none" stroke="white" stroke-width="14" stroke-linejoin="round"/>
+  <!-- right mirror -->
+  <path d="M412 300 L444 285 L444 310 L412 310" fill="none" stroke="white" stroke-width="14" stroke-linejoin="round"/>
+  <!-- bottom bumper line -->
+  <path d="M108 390 L108 400 Q108 410 120 410 L392 410 Q404 410 404 400 L404 390" fill="none" stroke="white" stroke-width="14" stroke-linecap="round"/>
 </svg>
