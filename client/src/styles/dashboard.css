@@ -611,7 +611,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .comm-call-note-ta{resize:vertical;min-height:90px;font-size:16px;}
 
 /* Messages area */
-.comm-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;scrollbar-width:none;}
+.comm-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .comm-messages::-webkit-scrollbar{display:none;}
 .comm-bubble{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.45;animation:fade-up 0.15s ease-out;}
 .comm-bubble.in{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px;}
@@ -666,7 +666,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   .comm-back-btn{display:flex;align-items:center;gap:4px;padding:6px 10px 6px 6px;border-radius:20px;border:none;background:var(--surface2);color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0;font-family:var(--font);}
   .comm-back-btn:active{opacity:0.7;}
   .comm-back-arrow{font-size:16px;line-height:1;}
-  .comm-back-label{font-size:13px;}
+  .comm-back-label{display:none;}
   /* Header: left group + actions ai lati */
   .comm-chat-header{gap:8px;}
   .comm-chat-header-left{flex:1;min-width:0;}
