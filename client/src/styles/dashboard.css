@@ -567,6 +567,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 /* Timeline feed */
 .comm-timeline-new-note{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
 .comm-timeline-note-actions{display:flex;gap:8px;justify-content:flex-end;}
+.comm-timeline-panel{display:flex;flex-direction:column;flex:1;min-height:0;}
+.comm-timeline-panel-header{display:flex;align-items:center;justify-content:flex-end;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px;}
 .comm-timeline-feed{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
 .comm-timeline-empty{font-size:12px;color:var(--text3);text-align:center;padding:12px 0;}
 .comm-timeline-item{display:flex;align-items:flex-start;gap:8px;background:var(--surface2);border-radius:8px;padding:8px 10px;}
@@ -672,4 +674,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   /* Header: left group + actions ai lati */
   .comm-chat-header{gap:8px;}
   .comm-chat-header-left{flex:1;min-width:0;}
+
+  /* Previeni zoom iOS su focus input (font-size < 16px) */
+  .comm-info-inline-input,
+  .comm-info-notes-ta,
+  .comm-info-seq-select,
+  .comm-followup-dt-input,
+  .comm-name-input { font-size:16px; }
 }

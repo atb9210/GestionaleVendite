@@ -95,6 +95,7 @@ export default function Communications() {
   const [sequenza, setSequenza]             = useState({});
   const [newNoteText, setNewNoteText]       = useState('');
   const [addingNote, setAddingNote]         = useState(false);
+  const [infoPanelTab, setInfoPanelTab]     = useState('info');
 
   const nameInputRef    = useRef(null);
   const emailInputRef   = useRef(null);
@@ -127,6 +128,7 @@ export default function Communications() {
     setAddingNote(false);
     setNewNoteText('');
     setShowFollowUpMenu(false);
+    setInfoPanelTab('info');
   }, [activeId]);
 
   // Nota post-chiamata
@@ -567,6 +569,7 @@ export default function Communications() {
                   {/* Azioni rapide — sempre visibili anche quando il panel copre l'header */}
                   <div className="comm-info-actions-bar">
                     <button className="comm-info-btn" onClick={handleCall} title="Chiama" aria-label="Chiama">📞</button>
+                    <button className={`comm-info-btn${infoPanelTab==='timeline'?' active':''}`} onClick={() => setInfoPanelTab(t => t==='timeline'?'info':'timeline')} title="Timeline" aria-label="Timeline">⏱</button>
                     <div className="comm-move-wrap" ref={movePanelRef}>
                       <button className="comm-info-btn" onClick={() => setShowMovePanelMenu(p => !p)} title="Sposta gruppo" aria-label="Sposta in gruppo">→</button>
                       {showMovePanelMenu && (
@@ -582,128 +585,131 @@ export default function Communications() {
                     </div>
                   </div>
 
-                  <div className="comm-info-section">
-                    <div className="comm-info-section-label">Contatto</div>
-                    <div className="comm-info-field">
-                      <span className="comm-info-field-icon">👤</span>
-                      <span className="comm-info-field-value">{active.contactName}</span>
-                      <button className="comm-info-edit-btn" onClick={startEditName} aria-label="Modifica nome">✏️</button>
-                    </div>
-                    <div className="comm-info-field">
-                      <span className="comm-info-field-icon">📱</span>
-                      <span className="comm-info-field-value">{active.phone}</span>
-                    </div>
-                    <div className="comm-info-field">
-                      <span className="comm-info-field-icon">✉️</span>
-                      {editingEmail ? (
-                        <input ref={emailInputRef} className="comm-info-inline-input" type="email" value={emailInput}
-                          onChange={e => setEmailInput(e.target.value)} onBlur={saveEmail}
-                          onKeyDown={e => { if(e.key==='Enter')saveEmail(); if(e.key==='Escape')setEditingEmail(false); }}
-                          placeholder="email@esempio.it" aria-label="Email" />
-                      ) : (
-                        <>
-                          <span className="comm-info-field-value">{active.email || <span className="comm-info-placeholder">Aggiungi email</span>}</span>
-                          <button className="comm-info-edit-btn" onClick={startEditEmail} aria-label="Modifica email">✏️</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="comm-info-section">
-                    <div className="comm-info-section-label">Opportunità</div>
-                    <div className="comm-info-field">
-                      <span className="comm-info-field-icon">💶</span>
-                      {oppEditing ? (
-                        <input className="comm-info-inline-input" type="number" min="0" value={oppValue}
-                          onChange={e => setOppValue(e.target.value)} onBlur={saveOppValue}
-                          onKeyDown={e => { if(e.key==='Enter')saveOppValue(); if(e.key==='Escape')setOppEditing(false); }}
-                          placeholder="0" aria-label="Valore opportunità" />
-                      ) : (
-                        <>
-                          <span className="comm-info-field-value">
-                            {active.opportunityValue!=null ? `€ ${Number(active.opportunityValue).toLocaleString('it-IT')}` : <span className="comm-info-placeholder">Valore opportunità</span>}
-                          </span>
-                          <button className="comm-info-edit-btn" onClick={() => { setOppValue(active.opportunityValue!=null?String(active.opportunityValue):''); setOppEditing(true); }} aria-label="Modifica valore">✏️</button>
-                        </>
-                      )}
-                    </div>
-                    <div className="comm-info-field comm-info-followup-wrap" ref={followUpMenuRef}>
-                      <span className="comm-info-field-icon">⏰</span>
-                      <button className="comm-info-followup-btn" onClick={() => setShowFollowUpMenu(p=>!p)} aria-haspopup="true" aria-expanded={showFollowUpMenu}>
-                        {followUp ? fmtFollowUp(followUp) : <span className="comm-info-placeholder">Follow-up</span>}
-                      </button>
-                      {followUp && <button className="comm-info-edit-btn" onClick={() => setFollowUps(p=>({...p,[activeId]:null}))} aria-label="Rimuovi">×</button>}
-                      {showFollowUpMenu && (
-                        <div className="comm-followup-menu" role="menu">
-                          {FOLLOWUP_OPTIONS.map(opt => (
-                            opt.getValue !== null ? (
-                              <button key={opt.label} className="comm-followup-option" role="menuitem" onClick={() => applyFollowUp(opt)}>{opt.label}</button>
-                            ) : (
-                              <div key="custom" className="comm-followup-custom">
-                                <input type="datetime-local" className="comm-followup-dt-input" value={customDateTime} onChange={e => setCustomDateTime(e.target.value)} aria-label="Data e ora" />
-                                <button className="comm-followup-option comm-followup-confirm" onClick={applyCustomFollowUp}>Conferma</button>
-                              </div>
-                            )
-                          ))}
+                  {infoPanelTab === 'info' ? (
+                    <>
+                      <div className="comm-info-section">
+                        <div className="comm-info-section-label">Contatto</div>
+                        <div className="comm-info-field">
+                          <span className="comm-info-field-icon">👤</span>
+                          <span className="comm-info-field-value">{active.contactName}</span>
+                          <button className="comm-info-edit-btn" onClick={startEditName} aria-label="Modifica nome">✏️</button>
                         </div>
-                      )}
-                    </div>
-                    <div className="comm-info-field">
-                      <span className="comm-info-field-icon">🔁</span>
-                      <select className="comm-info-seq-select" value={seqValue} onChange={e => setSequenza(p=>({...p,[activeId]:e.target.value}))} aria-label="Sequenza">
-                        {SEQUENZE.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="comm-info-section">
-                    <div className="comm-info-section-label">CRM</div>
-                    <div className="comm-info-section-value">
-                      {active.customer
-                        ? <span className="comm-info-badge comm-info-badge--customer">👤 Cliente{active.customer.name?` — ${active.customer.name}`:''}</span>
-                        : <span className="comm-info-badge comm-info-badge--lead">🆕 Lead</span>}
-                    </div>
-                    {!active.customer && (
-                      <button className="comm-customer-add-btn comm-info-link-btn" onClick={() => { setShowInfoPanel(false); setShowLinkCustomer(true); }}>+ collega cliente</button>
-                    )}
-                  </div>
-
-                  <div className="comm-info-section">
-                    <div className="comm-info-section-label">Note</div>
-                    <textarea className="comm-info-notes-ta" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Note sul contatto…" rows={4} aria-label="Note" />
-                    <button className="btn-primary btn-sm comm-info-notes-save" onClick={saveNotes} disabled={notesSaving}>{notesSaving?'Salvataggio…':'Salva note'}</button>
-                  </div>
-
-                  <div className="comm-info-section">
-                    <div className="comm-info-section-label-row">
-                      <span className="comm-info-section-label">Timeline</span>
-                      <button className="comm-timeline-add-btn" onClick={() => setAddingNote(p=>!p)} aria-label="Aggiungi nota">+</button>
-                    </div>
-                    {addingNote && (
-                      <div className="comm-timeline-new-note">
-                        <textarea className="comm-info-notes-ta" rows={2} value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
-                          placeholder="Aggiungi nota…" autoFocus aria-label="Nuova nota"
-                          onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();saveNewNote();} if(e.key==='Escape')setAddingNote(false); }} />
-                        <div className="comm-timeline-note-actions">
-                          <button className="btn-secondary btn-sm" onClick={() => setAddingNote(false)}>Annulla</button>
-                          <button className="btn-primary btn-sm" onClick={saveNewNote} disabled={!newNoteText.trim()}>Salva</button>
+                        <div className="comm-info-field">
+                          <span className="comm-info-field-icon">📱</span>
+                          <span className="comm-info-field-value">{active.phone}</span>
+                        </div>
+                        <div className="comm-info-field">
+                          <span className="comm-info-field-icon">✉️</span>
+                          {editingEmail ? (
+                            <input ref={emailInputRef} className="comm-info-inline-input" type="email" value={emailInput}
+                              onChange={e => setEmailInput(e.target.value)} onBlur={saveEmail}
+                              onKeyDown={e => { if(e.key==='Enter')saveEmail(); if(e.key==='Escape')setEditingEmail(false); }}
+                              placeholder="email@esempio.it" aria-label="Email" />
+                          ) : (
+                            <>
+                              <span className="comm-info-field-value">{active.email || <span className="comm-info-placeholder">Aggiungi email</span>}</span>
+                              <button className="comm-info-edit-btn" onClick={startEditEmail} aria-label="Modifica email">✏️</button>
+                            </>
+                          )}
                         </div>
                       </div>
-                    )}
-                    <div className="comm-timeline-feed">
-                      {(active.activities||[]).length === 0 && !addingNote && <div className="comm-timeline-empty">Nessuna attività</div>}
-                      {(active.activities||[]).map(act => (
-                        <div key={act.id} className="comm-timeline-item">
-                          <span className="comm-timeline-icon">{ACT_ICON[act.type]||'•'}</span>
-                          <div className="comm-timeline-content">
-                            <span className="comm-timeline-text">{act.text}</span>
-                            <span className="comm-timeline-time">{fmtActivityTime(act.tsRaw)}</span>
-                          </div>
-                          <button className="comm-timeline-del" onClick={() => deleteActivity(activeId, act.id)} aria-label="Elimina">×</button>
+
+                      <div className="comm-info-section">
+                        <div className="comm-info-section-label">Opportunità</div>
+                        <div className="comm-info-field">
+                          <span className="comm-info-field-icon">💶</span>
+                          {oppEditing ? (
+                            <input className="comm-info-inline-input" type="number" min="0" value={oppValue}
+                              onChange={e => setOppValue(e.target.value)} onBlur={saveOppValue}
+                              onKeyDown={e => { if(e.key==='Enter')saveOppValue(); if(e.key==='Escape')setOppEditing(false); }}
+                              placeholder="0" aria-label="Valore opportunità" />
+                          ) : (
+                            <>
+                              <span className="comm-info-field-value">
+                                {active.opportunityValue!=null ? `€ ${Number(active.opportunityValue).toLocaleString('it-IT')}` : <span className="comm-info-placeholder">Valore opportunità</span>}
+                              </span>
+                              <button className="comm-info-edit-btn" onClick={() => { setOppValue(active.opportunityValue!=null?String(active.opportunityValue):''); setOppEditing(true); }} aria-label="Modifica valore">✏️</button>
+                            </>
+                          )}
                         </div>
-                      ))}
+                        <div className="comm-info-field comm-info-followup-wrap" ref={followUpMenuRef}>
+                          <span className="comm-info-field-icon">⏰</span>
+                          <button className="comm-info-followup-btn" onClick={() => setShowFollowUpMenu(p=>!p)} aria-haspopup="true" aria-expanded={showFollowUpMenu}>
+                            {followUp ? fmtFollowUp(followUp) : <span className="comm-info-placeholder">Follow-up</span>}
+                          </button>
+                          {followUp && <button className="comm-info-edit-btn" onClick={() => setFollowUps(p=>({...p,[activeId]:null}))} aria-label="Rimuovi">×</button>}
+                          {showFollowUpMenu && (
+                            <div className="comm-followup-menu" role="menu">
+                              {FOLLOWUP_OPTIONS.map(opt => (
+                                opt.getValue !== null ? (
+                                  <button key={opt.label} className="comm-followup-option" role="menuitem" onClick={() => applyFollowUp(opt)}>{opt.label}</button>
+                                ) : (
+                                  <div key="custom" className="comm-followup-custom">
+                                    <input type="datetime-local" className="comm-followup-dt-input" value={customDateTime} onChange={e => setCustomDateTime(e.target.value)} aria-label="Data e ora" />
+                                    <button className="comm-followup-option comm-followup-confirm" onClick={applyCustomFollowUp}>Conferma</button>
+                                  </div>
+                                )
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="comm-info-field">
+                          <span className="comm-info-field-icon">🔁</span>
+                          <select className="comm-info-seq-select" value={seqValue} onChange={e => setSequenza(p=>({...p,[activeId]:e.target.value}))} aria-label="Sequenza">
+                            {SEQUENZE.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="comm-info-section">
+                        <div className="comm-info-section-label">CRM</div>
+                        <div className="comm-info-section-value">
+                          {active.customer
+                            ? <span className="comm-info-badge comm-info-badge--customer">👤 Cliente{active.customer.name?` — ${active.customer.name}`:''}</span>
+                            : <span className="comm-info-badge comm-info-badge--lead">🆕 Lead</span>}
+                        </div>
+                        {!active.customer && (
+                          <button className="comm-customer-add-btn comm-info-link-btn" onClick={() => { setShowInfoPanel(false); setShowLinkCustomer(true); }}>+ collega cliente</button>
+                        )}
+                      </div>
+
+                      <div className="comm-info-section">
+                        <div className="comm-info-section-label">Note</div>
+                        <textarea className="comm-info-notes-ta" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Note sul contatto…" rows={4} aria-label="Note" />
+                        <button className="btn-primary btn-sm comm-info-notes-save" onClick={saveNotes} disabled={notesSaving}>{notesSaving?'Salvataggio…':'Salva note'}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="comm-timeline-panel">
+                      <div className="comm-timeline-panel-header">
+                        <button className="comm-timeline-add-btn" onClick={() => setAddingNote(p=>!p)} aria-label="Aggiungi nota">+ Nota</button>
+                      </div>
+                      {addingNote && (
+                        <div className="comm-timeline-new-note">
+                          <textarea className="comm-info-notes-ta" rows={2} value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
+                            placeholder="Aggiungi nota…" autoFocus aria-label="Nuova nota"
+                            onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();saveNewNote();} if(e.key==='Escape')setAddingNote(false); }} />
+                          <div className="comm-timeline-note-actions">
+                            <button className="btn-secondary btn-sm" onClick={() => setAddingNote(false)}>Annulla</button>
+                            <button className="btn-primary btn-sm" onClick={saveNewNote} disabled={!newNoteText.trim()}>Salva</button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="comm-timeline-feed">
+                        {(active.activities||[]).length === 0 && !addingNote && <div className="comm-timeline-empty">Nessuna attività</div>}
+                        {(active.activities||[]).map(act => (
+                          <div key={act.id} className="comm-timeline-item">
+                            <span className="comm-timeline-icon">{ACT_ICON[act.type]||'•'}</span>
+                            <div className="comm-timeline-content">
+                              <span className="comm-timeline-text">{act.text}</span>
+                              <span className="comm-timeline-time">{fmtActivityTime(act.tsRaw)}</span>
+                            </div>
+                            <button className="comm-timeline-del" onClick={() => deleteActivity(activeId, act.id)} aria-label="Elimina">×</button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                 </div>
               </div>
