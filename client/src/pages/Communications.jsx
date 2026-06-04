@@ -541,7 +541,7 @@ export default function Communications() {
                   const dayLabel = getDayLabel(msg.createdAt);
                   const prevDayLabel = i > 0 ? getDayLabel(active.messages[i-1].createdAt) : null;
                   return (
-                    <div key={msg.id}>
+                    <div key={msg.id} className="comm-msg-wrapper">
                       {dayLabel !== prevDayLabel && <div className="comm-day-sep"><span>{dayLabel}</span></div>}
                       <div className={`comm-bubble ${msg.dir==='out'?'out':'in'}`}>
                         <div className="comm-bubble-text">{msg.text}</div>

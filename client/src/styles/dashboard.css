@@ -613,6 +613,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 /* Messages area */
 .comm-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 .comm-messages::-webkit-scrollbar{display:none;}
+.comm-msg-wrapper{display:contents;}
+.comm-messages>div{display:contents;}
 .comm-bubble{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.45;animation:fade-up 0.15s ease-out;}
 .comm-bubble.in{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px;}
 .comm-bubble.out{align-self:flex-end;background:var(--accent-dim);border:1px solid rgba(99,102,241,0.2);border-bottom-right-radius:4px;color:var(--text);}
