@@ -6,25 +6,23 @@ self.addEventListener('push', (event) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [200, 100, 200],
-      data: { conversationId: data.conversationId },
+      data: { url: data.conversationId ? `/?openConv=${data.conversationId}` : '/' },
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const convId = event.notification.data?.conversationId;
+  const targetUrl = event.notification.data?.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      const existing = list.find(c => c.url.includes(self.location.origin));
-      if (existing) {
-        return existing.focus().then(c => {
-          // App già aperta: manda messaggio diretto senza reload
-          c.postMessage({ type: 'OPEN_CONV', conversationId: convId });
-        });
+      for (const client of list) {
+        if ('navigate' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
       }
-      // App chiusa: apri con query param
-      return clients.openWindow(convId ? `/?openConv=${convId}` : '/');
+      return clients.openWindow(targetUrl);
     })
   );
 });
