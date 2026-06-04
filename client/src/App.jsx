@@ -35,13 +35,30 @@ function AppInner() {
     if (openConvParam) window.history.replaceState({}, '', '/');
   }, []);
 
-  // App già aperta: arriva postMessage dal SW
+  // App già aperta: arriva postMessage dal SW (foreground o risveglio da background)
   useEffect(() => {
     if (!pushOpenConvId) return;
     setOpenConvId(pushOpenConvId);
     setCurrentPage('comunicazioni');
     clearPushOpenConvId();
   }, [pushOpenConvId]);
+
+  // Fallback visibilitychange: se l'app torna visibile con ?openConv= nell'URL
+  // (caso iOS background dove navigate() era stato chiamato in precedenza)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const params = new URLSearchParams(window.location.search);
+      const conv = params.get('openConv');
+      if (conv) {
+        setOpenConvId(conv);
+        setCurrentPage('comunicazioni');
+        window.history.replaceState({}, '', '/');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   const pages = {
     dashboard: <Dashboard />,
