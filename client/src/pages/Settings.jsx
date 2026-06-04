@@ -18,9 +18,11 @@ export default function Settings() {
   const [goals, setGoals] = useState({ monthlyProfit:'€ 4.000', marginTarget:'60%', mrrTarget:'€ 3.000' });
 
   // ─── Push notifications ───
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   const [pushStatus, setPushStatus] = useState(() => {
-    if (!('Notification' in window)) return 'unsupported';
-    return Notification.permission; // 'default' | 'granted' | 'denied'
+    if (!('Notification' in window)) return isIos && !isPwa ? 'ios-browser' : 'unsupported';
+    return Notification.permission;
   });
   const [pushLoading, setPushLoading] = useState(false);
 
@@ -321,9 +323,10 @@ export default function Settings() {
             {pushStatus === 'granted' && <span style={{ color:'var(--green)' }}>✓ Attive</span>}
             {pushStatus === 'denied'  && <span style={{ color:'var(--red)' }}>✗ Bloccate (abilita dal browser)</span>}
             {pushStatus === 'default' && <span style={{ color:'var(--amber)' }}>Non ancora attivate</span>}
-            {pushStatus === 'unsupported' && <span style={{ color:'var(--text3)' }}>Non supportate</span>}
+            {pushStatus === 'ios-browser'  && <span style={{ color:'var(--amber)' }}>Apri in Safari → <strong>Aggiungi a schermata Home</strong>, poi torna qui</span>}
+            {pushStatus === 'unsupported'  && <span style={{ color:'var(--text3)' }}>Browser non supportato</span>}
           </span>
-          {pushStatus !== 'denied' && pushStatus !== 'unsupported' && (
+          {pushStatus !== 'denied' && pushStatus !== 'unsupported' && pushStatus !== 'ios-browser' && (
             <button className="btn-secondary btn-sm" onClick={activatePush} disabled={pushLoading}>
               {pushLoading ? 'Attivazione…' : pushStatus === 'granted' ? '🔄 Rinnova' : '🔔 Attiva notifiche'}
             </button>
