@@ -96,7 +96,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
     data: { updatedAt: new Date(), unreadCount: { increment: 1 } },
   });
   broadcastSSE('new-message', { conversationId: conversation.id });
-  sendPushToAll({ title: `💬 ${conversation.contactName}`, body: text }).catch(() => {});
+  sendPushToAll({ title: `💬 ${conversation.contactName}`, body: text, conversationId: conversation.id }).catch(() => {});
   console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
 }
 

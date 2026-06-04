@@ -7,7 +7,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY || '',
 );
 
-export async function sendPushToAll(payload: { title: string; body: string; icon?: string }) {
+export async function sendPushToAll(payload: { title: string; body: string; icon?: string; conversationId?: string }) {
   const subs = await prisma.pushSubscription.findMany();
   const data = JSON.stringify(payload);
 

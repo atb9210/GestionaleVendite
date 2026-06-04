@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DataProvider, useData } from './context/DataContext';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
@@ -29,14 +29,21 @@ function LoadingGate({ children }) {
 // Componente principale App
 function App() {
   // Stato per pagina corrente
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const openConvParam = new URLSearchParams(window.location.search).get('openConv');
+  const [currentPage, setCurrentPage] = useState(openConvParam ? 'comunicazioni' : 'dashboard');
+  const [openConvId, setOpenConvId] = useState(openConvParam || null);
+
+  // Pulisce il query param dall'URL senza ricaricare
+  useEffect(() => {
+    if (openConvParam) window.history.replaceState({}, '', '/');
+  }, []);
 
   // Mappa delle pagine
   const pages = {
     dashboard: <Dashboard />,
     ordini: <Orders />,
     clienti: <Customers />,
-    comunicazioni: <Communications />,
+    comunicazioni: <Communications openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />,
     abbonamenti: <Subscriptions />,
     prodotti: <Products />,
     acquisti: <Purchases />,

@@ -53,7 +53,7 @@ function fmtFollowUp(date) {
 
 const UNCONTACTED_ID = '__uncontacted__';
 
-export default function Communications() {
+export default function Communications({ openConvId, onConvOpened }) {
   const {
     conversations, convGroups, customers, msgTemplates, showToast,
     sendMessage: apiSendMessage, updateConversation,
@@ -108,6 +108,18 @@ export default function Communications() {
   const movePanelRef     = useRef(null);
 
   const active = conversations.find(c => c.id === activeId);
+
+  // Apri conversazione da notifica push
+  useEffect(() => {
+    if (!openConvId || conversations.length === 0) return;
+    const conv = conversations.find(c => c.id === openConvId);
+    if (!conv) return;
+    const groupId = conv.groupId || UNCONTACTED_ID;
+    setActiveGroupId(groupId);
+    setViewLevel('conversations');
+    setActiveId(openConvId);
+    onConvOpened?.();
+  }, [openConvId, conversations]);
 
   // Unread mark
   useEffect(() => {
