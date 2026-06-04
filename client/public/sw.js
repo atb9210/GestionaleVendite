@@ -14,12 +14,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const convId = event.notification.data?.conversationId;
-  const url = convId ? `/?openConv=${convId}` : '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       const existing = list.find(c => c.url.includes(self.location.origin));
-      if (existing) return existing.focus().then(c => c.navigate(url));
-      return clients.openWindow(url);
+      if (existing) {
+        return existing.focus().then(c => {
+          // App già aperta: manda messaggio diretto senza reload
+          c.postMessage({ type: 'OPEN_CONV', conversationId: convId });
+        });
+      }
+      // App chiusa: apri con query param
+      return clients.openWindow(convId ? `/?openConv=${convId}` : '/');
     })
   );
 });

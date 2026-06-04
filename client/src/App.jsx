@@ -13,32 +13,36 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Communications from './pages/Communications';
 
-// Toast globale che legge dal context
 function GlobalToast() {
   const { toast, hideToast } = useData();
   return <Toast message={toast.message} type={toast.type} isVisible={toast.show} onHide={hideToast} />;
 }
 
-// Loading overlay
 function LoadingGate({ children }) {
   const { loading } = useData();
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:'14px', color:'var(--text3)' }}>Caricamento dati…</div>;
   return children;
 }
 
-// Componente principale App
-function App() {
-  // Stato per pagina corrente
+function AppInner() {
+  const { pushOpenConvId, clearPushOpenConvId } = useData();
+
   const openConvParam = new URLSearchParams(window.location.search).get('openConv');
   const [currentPage, setCurrentPage] = useState(openConvParam ? 'comunicazioni' : 'dashboard');
   const [openConvId, setOpenConvId] = useState(openConvParam || null);
 
-  // Pulisce il query param dall'URL senza ricaricare
   useEffect(() => {
     if (openConvParam) window.history.replaceState({}, '', '/');
   }, []);
 
-  // Mappa delle pagine
+  // App già aperta: arriva postMessage dal SW
+  useEffect(() => {
+    if (!pushOpenConvId) return;
+    setOpenConvId(pushOpenConvId);
+    setCurrentPage('comunicazioni');
+    clearPushOpenConvId();
+  }, [pushOpenConvId]);
+
   const pages = {
     dashboard: <Dashboard />,
     ordini: <Orders />,
@@ -53,11 +57,17 @@ function App() {
   };
 
   return (
+    <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+      {pages[currentPage] || pages.dashboard}
+    </Layout>
+  );
+}
+
+function App() {
+  return (
     <DataProvider>
       <LoadingGate>
-        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-          {pages[currentPage] || pages.dashboard}
-        </Layout>
+        <AppInner />
       </LoadingGate>
       <GlobalToast />
     </DataProvider>

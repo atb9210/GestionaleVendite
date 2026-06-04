@@ -103,6 +103,7 @@ export function DataProvider({ children }) {
   const [loading, setLoading]             = useState(true);
   const [whatsappStatus, setWhatsappStatus] = useState('unknown');
   const [toast, setToast]                 = useState({ show: false, message: '', type: 'success' });
+  const [pushOpenConvId, setPushOpenConvId] = useState(null);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -190,9 +191,15 @@ export function DataProvider({ children }) {
     return () => es.close();
   }, [refreshConversations, showToast]);
 
-  // Registra service worker al caricamento (senza chiedere permessi)
+  // Registra service worker + ascolta messaggi push
   useEffect(() => {
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const handler = (e) => {
+      if (e.data?.type === 'OPEN_CONV' && e.data.conversationId) setPushOpenConvId(e.data.conversationId);
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, []);
 
   // ─── CRUD helpers (Optimistic UI) ───
@@ -403,6 +410,7 @@ export function DataProvider({ children }) {
     // Utils
     loading, refreshAll,
     whatsappStatus,
+    pushOpenConvId, clearPushOpenConvId: () => setPushOpenConvId(null),
     toast, showToast, hideToast,
     api,
   };
