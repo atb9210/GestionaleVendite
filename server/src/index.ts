@@ -19,6 +19,7 @@ import expensesRouter       from './modules/expenses/routes';
 
 // Communications (gestita dalla pagina Communications)
 import conversationsRouter  from './modules/communications/conversations.routes';
+import convGroupsRouter     from './modules/communications/groups.routes';
 import msgTemplatesRouter   from './modules/communications/msgTemplates.routes';
 import wasenderRouter       from './modules/communications/wasender.routes';
 
@@ -74,6 +75,7 @@ app.use('/api/v1/subscriptions', subscriptionsRouter);
 app.use('/api/v1/purchases', purchasesRouter);
 app.use('/api/v1/expenses', expensesRouter);
 app.use('/api/v1/conversations', conversationsRouter);
+app.use('/api/v1/conv-groups', convGroupsRouter);
 app.use('/api/v1/msg-templates', msgTemplatesRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 

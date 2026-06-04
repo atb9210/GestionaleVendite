@@ -179,11 +179,24 @@ model Expense {
 
 // ─── COMUNICAZIONI ───
 
+model ConversationGroup {
+  id            String         @id @default(cuid())
+  name          String
+  icon          String?
+  color         String?
+  isDefault     Boolean        @default(false)
+  order         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
 model Conversation {
   id               String                 @id @default(cuid())
   contactName      String
   phone            String
   email            String?
+  groupId          String?
+  group            ConversationGroup?     @relation(fields: [groupId], references: [id])
   customerId       String?
   customer         Customer?              @relation(fields: [customerId], references: [id])
   status           ConvStatus             @default(NEW_LEAD)

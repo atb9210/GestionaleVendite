@@ -89,6 +89,12 @@ export const api = {
     addActivity: (id, d) => post(`/conversations/${id}/activities`, d),
     delActivity: (id, actId) => del(`/conversations/${id}/activities/${actId}`),
   },
+  convGroups: {
+    list:   () => get('/conv-groups'),
+    create: (d) => post('/conv-groups', d),
+    update: (id, d) => put(`/conv-groups/${id}`, d),
+    delete: (id) => del(`/conv-groups/${id}`),
+  },
   msgTemplates: {
     list:   () => get('/msg-templates'),
     create: (d) => post('/msg-templates', d),

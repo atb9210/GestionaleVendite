@@ -98,6 +98,7 @@ export function DataProvider({ children }) {
   const [expenses, setExpenses]           = useState([]);
   const [suppliers, setSuppliers]         = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [convGroups, setConvGroups]       = useState([]);
   const [msgTemplates, setMsgTemplates]   = useState([]);
   const [loading, setLoading]             = useState(true);
   const [whatsappStatus, setWhatsappStatus] = useState('unknown');
@@ -111,7 +112,7 @@ export function DataProvider({ children }) {
   // ─── Fetch all data on mount ───
   const refreshAll = useCallback(async () => {
     try {
-      const [ch, pt, ec, sup, prod, cust, ord, subs, purch, exp, conv, tpl] = await Promise.all([
+      const [ch, pt, ec, sup, prod, cust, ord, subs, purch, exp, conv, grps, tpl] = await Promise.all([
         api.channels.list(),
         api.productTypes.list(),
         api.expenseCategories.list(),
@@ -123,6 +124,7 @@ export function DataProvider({ children }) {
         api.purchases.list(),
         api.expenses.list(),
         api.conversations.list(),
+        api.convGroups.list(),
         api.msgTemplates.list(),
       ]);
       setChannels(ch.map(enrichChannel));
@@ -136,6 +138,7 @@ export function DataProvider({ children }) {
       setPurchases(purch.map(normalizePurchase));
       setExpenses(exp.map(normalizeExpense));
       setConversations(conv.map(normalizeConversation));
+      setConvGroups(grps);
       setMsgTemplates(tpl);
     } catch (e) {
       console.error('Fetch error:', e);
@@ -326,6 +329,14 @@ export function DataProvider({ children }) {
       });
   }, [showToast]);
 
+  // ─── ConvGroups ───
+  const createConvGroup = useCallback((data) => {
+    const opt = { ...data, id: tempId(), isDefault: false };
+    optimisticCreate(setConvGroups, x => x, () => api.convGroups.create(data), opt, 'Errore creazione gruppo');
+  }, [showToast]);
+  const updateConvGroup = useCallback((id, data) => optimisticUpdate(setConvGroups, x => x, () => api.convGroups.update(id, data), id, data, 'Errore aggiornamento gruppo'), [showToast]);
+  const deleteConvGroup = useCallback((id) => optimisticDelete(setConvGroups, () => api.convGroups.delete(id), id, 'Errore eliminazione gruppo'), [showToast]);
+
   // ─── Message Templates (no normalize) ───
   const createMsgTemplate = useCallback((data) => {
     const opt = { ...data, id: tempId() };
@@ -363,7 +374,7 @@ export function DataProvider({ children }) {
     // Data arrays
     channels, productTypes, expenseCategories, products, customers,
     orders, subscriptions, purchases, expenses, suppliers,
-    conversations, msgTemplates,
+    conversations, convGroups, msgTemplates,
     // Legacy setters (for backward compat where pages haven't migrated yet)
     setChannels, setProductTypes, setExpenseCategories, setProducts,
     setCustomers, setOrders, setSubscriptions, setPurchases,
@@ -378,6 +389,7 @@ export function DataProvider({ children }) {
     createExpense, updateExpense, deleteExpense,
     createConversation, updateConversation, deleteConversation, sendMessage, refreshConversations,
     createActivity, deleteActivity,
+    createConvGroup, updateConvGroup, deleteConvGroup,
     createMsgTemplate, updateMsgTemplate, deleteMsgTemplate,
     createSupplier, updateSupplier, deleteSupplier,
     createProductType, createExpenseCategory,

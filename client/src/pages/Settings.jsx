@@ -8,10 +8,11 @@ const COLORS = ['#1877f2','#34a853','#e1306c','#818cf8','#f59e0b','#22c55e','#25
 const ICONS = ['📦','📣','💿','⛽','📄','🔌','💻','🔧','♻️','🔗','🎧','📱','🛒','✈️','🏠','📐'];
 
 export default function Settings() {
-  const { channels, expenseCategories, productTypes, suppliers, showToast,
+  const { channels, expenseCategories, productTypes, suppliers, convGroups, showToast,
     createChannel, updateChannel, deleteChannel: apiDeleteChannel,
     createExpenseCategory, createProductType,
     createSupplier, updateSupplier, deleteSupplier: apiDeleteSupplier,
+    createConvGroup, updateConvGroup, deleteConvGroup: apiDeleteConvGroup,
     setExpenseCategories, setProductTypes } = useData();
 
   const [goals, setGoals] = useState({ monthlyProfit:'€ 4.000', marginTarget:'60%', mrrTarget:'€ 3.000' });
@@ -127,6 +128,29 @@ export default function Settings() {
     } catch (e) { showToast(e.message || 'Errore', 'error'); }
   };
 
+  // ─── ConvGroup CRUD ───
+  const openGroupCreate = () => { setForm({ name:'', icon:'📁', color: COLORS[convGroups.length % COLORS.length] }); setModal({ type:'group', editItem:null }); setErrors({}); };
+  const openGroupEdit = (g) => { setForm({ name:g.name, icon:g.icon||'📁', color:g.color||COLORS[0] }); setModal({ type:'group', editItem:g }); setErrors({}); };
+  const saveGroup = async () => {
+    if (!form.name.trim()) { setErrors({ name:'Nome obbligatorio' }); return; }
+    try {
+      if (modal.editItem) {
+        await updateConvGroup(modal.editItem.id, { name:form.name.trim(), icon:form.icon, color:form.color });
+        showToast('Gruppo aggiornato');
+      } else {
+        await createConvGroup({ name:form.name.trim(), icon:form.icon, color:form.color });
+        showToast('Gruppo aggiunto');
+      }
+      setModal({ type:null, editItem:null });
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
+  };
+  const handleDeleteGroup = async () => {
+    try {
+      await apiDeleteConvGroup(deleteModal.id);
+      setDeleteModal(null); showToast('Gruppo rimosso', 'error');
+    } catch (e) { showToast(e.message || 'Errore', 'error'); }
+  };
+
   const closeModal = () => setModal({ type:null, editItem:null });
 
   return (
@@ -215,6 +239,35 @@ export default function Settings() {
         <div className="settings-row" style={{ justifyContent:'center' }}><button className="btn-secondary" style={{ width:'100%', justifyContent:'center' }} onClick={openSupplierCreate}>+ Aggiungi fornitore</button></div>
       </div>
 
+      {/* Gruppi Chat */}
+      <div className="settings-section">
+        <div className="settings-section-head"><div className="settings-section-title">Gruppi Chat</div><div className="settings-section-sub">Pipeline e cartelle per le conversazioni</div></div>
+        <div className="settings-row" style={{ pointerEvents:'none', opacity:0.55 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
+            <span style={{ fontSize:'16px' }}>📭</span>
+            <span style={{ fontSize:'13px' }}>Non Contattato</span>
+          </div>
+          <span className="badge badge-muted">default</span>
+        </div>
+        {convGroups.map((g) => (
+          <div key={g.id} className="settings-row" style={{ cursor:g.isDefault?'default':'pointer' }} onClick={() => !g.isDefault && openGroupEdit(g)}>
+            <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
+              <span style={{ fontSize:'16px' }}>{g.icon||'📁'}</span>
+              <span style={{ fontSize:'13px', fontWeight:500 }}>{g.name}</span>
+              {g.color && <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:g.color, display:'inline-block' }}></span>}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              {g.isDefault
+                ? <span className="badge badge-muted">default</span>
+                : <><span className="badge badge-muted">attivo</span>
+                   <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteModal({ ...g, _type:'group' }); }} title="Rimuovi">✕</button></>
+              }
+            </div>
+          </div>
+        ))}
+        <div className="settings-row" style={{ justifyContent:'center' }}><button className="btn-secondary" style={{ width:'100%', justifyContent:'center' }} onClick={openGroupCreate}>+ Aggiungi gruppo</button></div>
+      </div>
+
       {/* Team & ruoli */}
       <div className="settings-section">
         <div className="settings-section-head"><div className="settings-section-title">Team &amp; ruoli</div><div className="settings-section-sub">Chi può vedere cosa</div></div>
@@ -270,6 +323,18 @@ export default function Settings() {
         <div className="form-actions"><button className="btn-secondary" onClick={closeModal}>Annulla</button><button className="btn-primary" onClick={saveSupplier}>{modal.editItem ? 'Salva' : 'Aggiungi'}</button></div>
       </Modal>
 
+      {/* ─── MODAL: Gruppo ─── */}
+      <Modal isOpen={modal.type === 'group'} onClose={closeModal} title={modal.editItem ? 'Modifica gruppo' : 'Nuovo gruppo'}>
+        <div className="form-group"><label className="form-label">Nome</label><input className={`form-input ${errors.name ? 'error' : ''}`} value={form.name||''} onChange={e => setForm({...form, name:e.target.value})} placeholder="es. VIP Clienti" />{errors.name && <div className="form-error">{errors.name}</div>}</div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Icona (emoji)</label><input className="form-input" value={form.icon||''} onChange={e => setForm({...form, icon:e.target.value})} placeholder="📁" style={{ fontSize:'20px', textAlign:'center' }} maxLength={4} /></div>
+          <div className="form-group"><label className="form-label">Colore</label>
+            <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>{COLORS.map(c => <button key={c} type="button" onClick={() => setForm({...form, color:c})} style={{ width:'28px', height:'28px', borderRadius:'50%', background:c, border:(form.color||'') === c ? '2px solid var(--text)' : '2px solid transparent', cursor:'pointer' }} />)}</div>
+          </div>
+        </div>
+        <div className="form-actions"><button className="btn-secondary" onClick={closeModal}>Annulla</button><button className="btn-primary" onClick={saveGroup}>{modal.editItem ? 'Salva' : 'Aggiungi'}</button></div>
+      </Modal>
+
       {/* ─── MODAL: Conferma eliminazione ─── */}
       <Modal isOpen={!!deleteModal} onClose={() => setDeleteModal(null)} title="Conferma rimozione">
         <p className="confirm-text">Rimuovere <span className="confirm-highlight">{deleteModal?.label || deleteModal?.name}</span>?</p>
@@ -280,6 +345,7 @@ export default function Settings() {
             else if (deleteModal._type === 'expcat') deleteExpCat();
             else if (deleteModal._type === 'prodtype') deleteProdType();
             else if (deleteModal._type === 'supplier') handleDeleteSupplier();
+            else if (deleteModal._type === 'group') handleDeleteGroup();
           }}>Rimuovi</button>
         </div>
       </Modal>
