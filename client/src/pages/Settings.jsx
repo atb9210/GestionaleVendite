@@ -17,6 +17,32 @@ export default function Settings() {
 
   const [goals, setGoals] = useState({ monthlyProfit:'€ 4.000', marginTarget:'60%', mrrTarget:'€ 3.000' });
 
+  // ─── Push notifications ───
+  const [pushStatus, setPushStatus] = useState(() => {
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission; // 'default' | 'granted' | 'denied'
+  });
+  const [pushLoading, setPushLoading] = useState(false);
+
+  const VAPID_PUBLIC = 'BJ8IdJ2WaJKG7HSmuSUllak2KFCROPn2tTPd89qQIbR-_NkX365n_8-NYRpaQj7jfFrD2wAHXoLQSH94-EFFuVo';
+
+  const activatePush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showToast('Browser non supporta le push', 'error'); return;
+    }
+    setPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+      if (permission !== 'granted') { showToast('Permesso notifiche negato', 'error'); return; }
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: VAPID_PUBLIC });
+      await fetch('/api/v1/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) });
+      showToast('Notifiche attivate!');
+    } catch { showToast('Errore attivazione notifiche', 'error'); }
+    finally { setPushLoading(false); }
+  };
+
   // ─── Modal state ───
   const [modal, setModal] = useState({ type:null, editItem:null }); // type: 'channel'|'expcat'|'prodtype'
   const [form, setForm] = useState({});
@@ -281,6 +307,40 @@ export default function Settings() {
           </div>
         ))}
         <div className="settings-row" style={{ justifyContent:'center' }}><button className="btn-secondary" style={{ width:'100%', justifyContent:'center' }}>+ Invita membro</button></div>
+      </div>
+
+      {/* Notifiche push */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <div className="settings-section-title">Notifiche Push</div>
+          <div className="settings-section-sub">Ricevi notifiche sul dispositivo per nuovi messaggi WhatsApp</div>
+        </div>
+        <div className="settings-row">
+          <span style={{ fontSize:'13px', color:'var(--text2)' }}>
+            Stato:{' '}
+            {pushStatus === 'granted' && <span style={{ color:'var(--green)' }}>✓ Attive</span>}
+            {pushStatus === 'denied'  && <span style={{ color:'var(--red)' }}>✗ Bloccate (abilita dal browser)</span>}
+            {pushStatus === 'default' && <span style={{ color:'var(--amber)' }}>Non ancora attivate</span>}
+            {pushStatus === 'unsupported' && <span style={{ color:'var(--text3)' }}>Non supportate</span>}
+          </span>
+          {pushStatus !== 'denied' && pushStatus !== 'unsupported' && (
+            <button className="btn-secondary btn-sm" onClick={activatePush} disabled={pushLoading}>
+              {pushLoading ? 'Attivazione…' : pushStatus === 'granted' ? '🔄 Rinnova' : '🔔 Attiva notifiche'}
+            </button>
+          )}
+        </div>
+        {pushStatus === 'granted' && (
+          <div className="settings-row">
+            <span style={{ fontSize:'13px', color:'var(--text2)' }}>Testa la ricezione</span>
+            <button className="btn-secondary btn-sm" onClick={async () => {
+              try {
+                const r = await fetch('/api/v1/push/test', { method: 'POST' });
+                if (r.ok) showToast('Notifica inviata!');
+                else showToast('Errore invio', 'error');
+              } catch { showToast('Errore di rete', 'error'); }
+            }}>📨 Test notifica</button>
+          </div>
+        )}
       </div>
 
       {/* ─── MODAL: Canale ─── */}

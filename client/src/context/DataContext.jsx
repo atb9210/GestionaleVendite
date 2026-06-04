@@ -190,6 +190,11 @@ export function DataProvider({ children }) {
     return () => es.close();
   }, [refreshConversations, showToast]);
 
+  // Registra service worker al caricamento (senza chiedere permessi)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }, []);
+
   // ─── CRUD helpers (Optimistic UI) ───
   // Pattern: aggiorno lo state subito con dati ottimistici (id temporaneo),
   // poi sincronizzo con il backend in background. In caso di errore: rollback + toast.

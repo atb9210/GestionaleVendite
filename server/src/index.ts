@@ -32,6 +32,9 @@ import expenseCategoriesRouter  from './modules/settings/expenseCategories.route
 // Dashboard & Reports (analytics)
 import analyticsRouter      from './modules/dashboard/analytics.routes';
 
+// Notifiche push
+import pushRouter           from './modules/notifications/push.routes';
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -78,6 +81,7 @@ app.use('/api/v1/conversations', conversationsRouter);
 app.use('/api/v1/conv-groups', convGroupsRouter);
 app.use('/api/v1/msg-templates', msgTemplatesRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/push', pushRouter);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

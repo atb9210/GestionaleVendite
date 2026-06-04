@@ -5,6 +5,7 @@ import { getWasender } from '../../config/wasender';
 import { broadcastSSE } from '../../lib/sse';
 import { normalizePhone } from '../../lib/phone';
 import prisma from '../../config/prisma';
+import { sendPushToAll } from '../notifications/push.service';
 
 const router = Router();
 
@@ -95,6 +96,7 @@ async function saveIncomingMessage(msg: WasenderMsgPayload) {
     data: { updatedAt: new Date(), unreadCount: { increment: 1 } },
   });
   broadcastSSE('new-message', { conversationId: conversation.id });
+  sendPushToAll({ title: `💬 ${conversation.contactName}`, body: text }).catch(() => {});
   console.log(`[wasender] messaggio IN salvato — conv: ${conversation.id}, text: "${text}"`);
 }
 
