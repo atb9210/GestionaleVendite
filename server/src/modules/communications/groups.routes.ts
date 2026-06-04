@@ -31,18 +31,20 @@ router.post('/', validate(GroupSchema), async (req: Request, res: Response, next
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await prisma.conversationGroup.findUnique({ where: { id: req.params.id } });
+    const id = req.params.id as string;
+    const existing = await prisma.conversationGroup.findUnique({ where: { id } });
     if (existing?.isDefault) return res.status(403).json({ error: 'Gruppo di default non modificabile' });
-    const group = await prisma.conversationGroup.update({ where: { id: req.params.id }, data: req.body });
+    const group = await prisma.conversationGroup.update({ where: { id }, data: req.body });
     res.json(group);
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await prisma.conversationGroup.findUnique({ where: { id: req.params.id } });
+    const id = req.params.id as string;
+    const existing = await prisma.conversationGroup.findUnique({ where: { id } });
     if (existing?.isDefault) return res.status(403).json({ error: 'Gruppo di default non eliminabile' });
-    await prisma.conversationGroup.delete({ where: { id: req.params.id } });
+    await prisma.conversationGroup.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }
 });
