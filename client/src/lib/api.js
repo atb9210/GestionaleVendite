@@ -81,11 +81,13 @@ export const api = {
     delete: (id) => del(`/expenses/${id}`),
   },
   conversations: {
-    list:   () => get('/conversations'),
-    create: (d) => post('/conversations', d),
-    update: (id, d) => put(`/conversations/${id}`, d),
-    delete: (id) => del(`/conversations/${id}`),
-    addMessage: (id, d) => post(`/conversations/${id}/messages`, d),
+    list:        () => get('/conversations'),
+    create:      (d) => post('/conversations', d),
+    update:      (id, d) => put(`/conversations/${id}`, d),
+    delete:      (id) => del(`/conversations/${id}`),
+    addMessage:  (id, d) => post(`/conversations/${id}/messages`, d),
+    addActivity: (id, d) => post(`/conversations/${id}/activities`, d),
+    delActivity: (id, actId) => del(`/conversations/${id}/activities/${actId}`),
   },
   msgTemplates: {
     list:   () => get('/msg-templates'),

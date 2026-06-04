@@ -77,6 +77,12 @@ function normalizeConversation(c) {
       dir: (m.direction || m.dir || '').toLowerCase(),
       ts: m.createdAt ? fmtDate(m.createdAt) : (m.ts || ''),
     })),
+    activities: (c.activities || []).map(a => ({
+      ...a,
+      type: (a.type || '').toLowerCase(),
+      ts: a.createdAt ? fmtDate(a.createdAt) : '',
+      tsRaw: a.createdAt,
+    })),
   };
 }
 
@@ -271,11 +277,36 @@ export function DataProvider({ children }) {
 
   // ─── Conversations ───
   const createConversation = useCallback((data) => {
-    const opt = normalizeConversation({ ...data, id: tempId(), messages: [] });
+    const opt = normalizeConversation({ ...data, id: tempId(), messages: [], activities: [] });
     optimisticCreate(setConversations, normalizeConversation, () => api.conversations.create(data), opt, 'Errore creazione conversazione');
   }, [showToast]);
   const updateConversation = useCallback((id, data) => optimisticUpdate(setConversations, normalizeConversation, () => api.conversations.update(id, data), id, data, 'Errore aggiornamento conversazione'), [showToast]);
   const deleteConversation = useCallback((id) => optimisticDelete(setConversations, () => api.conversations.delete(id), id, 'Errore eliminazione conversazione'), [showToast]);
+
+  const createActivity = useCallback(async (convId, data) => {
+    const tAct = { id: tempId(), type: data.type.toLowerCase(), text: data.text, ts: fmtDate(new Date().toISOString()), tsRaw: new Date().toISOString() };
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, activities: [tAct, ...(c.activities || [])] } : c));
+    try {
+      const real = await api.conversations.addActivity(convId, data);
+      const realAct = { ...real, type: (real.type || '').toLowerCase(), ts: fmtDate(real.createdAt), tsRaw: real.createdAt };
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, activities: c.activities.map(a => a.id === tAct.id ? realAct : a) } : c));
+      return realAct;
+    } catch (e) {
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, activities: c.activities.filter(a => a.id !== tAct.id) } : c));
+      showToast(e.message || 'Errore aggiunta attività', 'error');
+    }
+  }, [showToast]);
+
+  const deleteActivity = useCallback(async (convId, actId) => {
+    let snapshot;
+    setConversations(prev => { snapshot = prev; return prev.map(c => c.id === convId ? { ...c, activities: c.activities.filter(a => a.id !== actId) } : c); });
+    try {
+      await api.conversations.delActivity(convId, actId);
+    } catch (e) {
+      setConversations(snapshot);
+      showToast(e.message || 'Errore eliminazione attività', 'error');
+    }
+  }, [showToast]);
   // Send message: optimistic append + sostituzione con dato reale, senza full refresh
   const sendMessage = useCallback((convId, data) => {
     const tMsg = { id: tempId(), dir: (data.direction || 'out').toLowerCase(), text: data.text, ts: fmtDate(new Date().toISOString()), auto: !!data.auto };
@@ -346,6 +377,7 @@ export function DataProvider({ children }) {
     createPurchase, updatePurchase, deletePurchase,
     createExpense, updateExpense, deleteExpense,
     createConversation, updateConversation, deleteConversation, sendMessage, refreshConversations,
+    createActivity, deleteActivity,
     createMsgTemplate, updateMsgTemplate, deleteMsgTemplate,
     createSupplier, updateSupplier, deleteSupplier,
     createProductType, createExpenseCategory,

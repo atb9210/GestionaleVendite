@@ -180,17 +180,36 @@ model Expense {
 // ─── COMUNICAZIONI ───
 
 model Conversation {
-  id          String     @id @default(cuid())
-  contactName String
-  phone       String
-  customerId  String?
-  customer    Customer?  @relation(fields: [customerId], references: [id])
-  status      ConvStatus @default(NEW_LEAD)
-  unreadCount Int        @default(0)
-  notes       String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  messages    Message[]
+  id               String                 @id @default(cuid())
+  contactName      String
+  phone            String
+  email            String?
+  customerId       String?
+  customer         Customer?              @relation(fields: [customerId], references: [id])
+  status           ConvStatus             @default(NEW_LEAD)
+  unreadCount      Int                    @default(0)
+  notes            String?
+  opportunityValue Float?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  messages         Message[]
+  activities       ConversationActivity[]
+}
+
+model ConversationActivity {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  type           ActivityType
+  text           String
+  createdAt      DateTime     @default(now())
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  STATUS_CHANGE
+  MESSAGE
 }
 
 enum ConvStatus {
